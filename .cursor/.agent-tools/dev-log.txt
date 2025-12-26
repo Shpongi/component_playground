@@ -1,0 +1,515 @@
+
+> components-playground@0.1.0 dev
+> next dev --turbopack
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/gurshenkman/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/gurshenkman/components-playground/package-lock.json
+
+   ▲ Next.js 15.5.5 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://10.0.50.29:3000
+
+ ✓ Starting...
+ ✓ Ready in 932ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.7s
+ GET / 200 in 3080ms
+ ✓ Compiled /favicon.ico in 187ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 461ms
+ ✓ Compiled / in 42ms
+ GET / 200 in 207ms
+ ✓ Compiled /admin in 447ms
+ GET /admin 200 in 526ms
+ ✓ Compiled /admin/tenants in 192ms
+ GET /admin/tenants 200 in 236ms
+ GET /admin/tenants 200 in 59ms
+ ✓ Compiled /admin/catalogs in 231ms
+ GET /admin/catalogs 200 in 276ms
+ GET /admin/tenants 200 in 46ms
+ ✓ Compiled /admin/stores in 148ms
+ GET /admin/stores 200 in 192ms
+ GET /admin/tenants 200 in 63ms
+ GET /admin/catalogs 200 in 40ms
+ ✓ Compiled in 257ms
+ GET /admin/catalogs 200 in 91ms
+ GET /admin/catalogs 200 in 105ms
+ GET /admin/tenants 200 in 70ms
+ ✓ Compiled /admin/stores in 29ms
+ GET /admin/stores 200 in 163ms
+ GET /admin/tenants 200 in 52ms
+ GET /admin/catalogs 200 in 42ms
+ GET /admin/stores 200 in 43ms
+ GET /admin/tenants 200 in 41ms
+ ✓ Compiled in 221ms
+ ✓ Compiled /admin/tenants in 37ms
+ GET /admin/tenants 200 in 226ms
+ ✓ Compiled in 520ms
+ GET /admin/tenants 200 in 613ms
+ GET /admin/tenants 200 in 235ms
+ ✓ Compiled in 525ms
+ GET /admin/tenants 200 in 161ms
+ ✓ Compiled /admin/catalogs in 95ms
+ GET /admin/catalogs 200 in 540ms
+ GET /admin/stores 200 in 75ms
+ ✓ Compiled in 874ms
+ ✓ Compiled /admin/stores in 167ms
+ GET /admin/stores 200 in 1348ms
+ GET /admin/tenants 200 in 181ms
+ GET /admin/catalogs 200 in 113ms
+ ✓ Compiled in 315ms
+ ✓ Compiled /admin/catalogs in 47ms
+ GET /admin/catalogs 200 in 404ms
+ GET /admin/tenants 200 in 147ms
+ GET /admin/stores 200 in 118ms
+ ✓ Compiled in 703ms
+ GET /admin/stores 200 in 163ms
+ ✓ Compiled /admin/catalogs in 38ms
+ GET /admin/catalogs 200 in 310ms
+ GET /admin/catalogs 200 in 41ms
+ GET /admin/tenants 200 in 142ms
+ ✓ Compiled in 483ms
+ ✓ Compiled /admin/tenants in 53ms
+ GET /admin/tenants 200 in 298ms
+ GET /admin/catalogs 200 in 244ms
+ ✓ Compiled in 451ms
+ ✓ Compiled /admin/catalogs in 27ms
+ GET /admin/catalogs 200 in 338ms
+ GET /admin/catalogs 200 in 363ms
+ GET /admin/catalogs 200 in 450ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 1393ms
+ GET /favicon.ico 200 in 1110ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 328ms
+ ✓ Compiled in 635ms
+ ✓ Compiled in 378ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 699ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 471ms
+ GET /favicon.ico 200 in 371ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 246ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 340ms
+ GET /admin/catalogs 200 in 1360ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 263ms
+ ✓ Compiled /admin/stores in 94ms
+ GET /admin/stores 200 in 526ms
+ ✓ Compiled /admin/tenants in 63ms
+ GET /admin/tenants 200 in 256ms
+ GET /admin/catalogs 200 in 89ms
+ ✓ Compiled in 351ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 1512ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 296ms
+ GET /admin/tenants 200 in 522ms
+ GET /admin/tenants 200 in 109ms
+ GET /admin/catalogs 200 in 92ms
+ GET /admin/tenants 200 in 96ms
+ GET /admin/catalogs 200 in 316ms
+ GET /admin/catalogs 200 in 1852ms
+ ✓ Compiled in 177ms
+ ✓ Compiled in 188ms
+ ✓ Compiled in 116ms
+ ✓ Compiled in 696ms
+ ✓ Compiled in 286ms
+ ✓ Compiled in 161ms
+ ✓ Compiled in 193ms
+ ✓ Compiled in 49ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 86ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 1120ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 361ms
+ ✓ Compiled in 62ms
+ ✓ Compiled in 27ms
+ ✓ Compiled in 40ms
+ ✓ Compiled in 41ms
+ ✓ Compiled in 70ms
+ ✓ Compiled in 19ms
+ ✓ Compiled in 22ms
+ ✓ Compiled in 52ms
+ ✓ Compiled in 23ms
+ ✓ Compiled in 59ms
+ ✓ Compiled in 50ms
+ ✓ Compiled in 75ms
+ GET /admin/catalogs 200 in 255ms
+ ✓ Compiled in 47ms
+ GET /admin/catalogs 200 in 80ms
+ ✓ Compiled in 63ms
+ GET /admin/catalogs 200 in 91ms
+ ✓ Compiled in 232ms
+ ✓ Compiled in 182ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 639ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 251ms
+ ✓ Compiled in 72ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 130ms
+ GET /admin/catalogs 200 in 639ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 347ms
+ ✓ Compiled in 62ms
+ ✓ Compiled in 294ms
+ ✓ Compiled in 75ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 249ms
+ GET /admin/catalogs 200 in 791ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 277ms
+ ✓ Compiled in 751ms
+ ✓ Compiled in 68ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 1ms
+ GET /admin/catalogs 200 in 1408ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 321ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 62ms
+ GET /admin/catalogs 200 in 428ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 298ms
+ ✓ Compiled in 679ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 773ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 383ms
+ ✓ Compiled in 581ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 1480ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 1117ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 544ms
+ GET /admin/catalogs 200 in 2413ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 583ms
+ ✓ Compiled in 648ms
+ ✓ Compiled in 355ms
+ ✓ Compiled in 103ms
+ GET /admin/catalogs 200 in 1813ms
+ ✓ Compiled /admin/stores in 55ms
+ GET /admin/stores 200 in 293ms
+ GET /admin/catalogs 200 in 66ms
+ ✓ Compiled in 918ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 185ms
+ GET /admin/catalogs 200 in 712ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 817ms
+ ✓ Compiled in 728ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 2066ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 988ms
+ ✓ Compiled in 635ms
+ GET /admin/tenants 200 in 713ms
+ GET /admin/stores 200 in 312ms
+ GET /admin/catalogs 200 in 461ms
+ GET /admin/stores 200 in 555ms
+ GET /admin/catalogs 200 in 77ms
+ ✓ Compiled in 956ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 1328ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 407ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 756ms
+ GET /admin/catalogs 200 in 836ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 292ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 398ms
+ GET /admin/catalogs 200 in 858ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 313ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 325ms
+ GET /admin/catalogs 200 in 602ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 243ms
+ ✓ Compiled in 658ms
+ ✓ Compiled in 417ms
+ ✓ Compiled in 279ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ ReferenceError: availableQuery is not defined
+    at <unknown> (src/app/admin/catalogs/page.tsx:235:28)
+    at Array.map (<anonymous>)
+    at CatalogsPage (src/app/admin/catalogs/page.tsx:39:26)
+  233 |                     placeholder="Search available..."
+  234 |                     className="h-8 w-40 rounded-md border border-gray-200 bg-white px-2 text-xs"
+> 235 |                     value={availableQuery}
+      |                            ^
+  236 |                     onChange={(e) => setAvailableQuery(e.target.value)}
+  237 |                   />
+  238 |                 </div> {
+  digest: '2633459038'
+}
+ GET /admin/catalogs 500 in 979ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 293ms
+ GET /favicon.ico 200 in 262ms
+ ✓ Compiled in 232ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ ReferenceError: availableQuery is not defined
+    at <unknown> (src/app/admin/catalogs/page.tsx:251:28)
+    at Array.map (<anonymous>)
+    at CatalogsPage (src/app/admin/catalogs/page.tsx:39:26)
+  249 |                     placeholder="Search available..."
+  250 |                     className="h-8 w-40 rounded-md border border-gray-200 bg-white px-2 text-xs"
+> 251 |                     value={availableQuery}
+      |                            ^
+  252 |                     onChange={(e) => setAvailableQuery(e.target.value)}
+  253 |                   />
+  254 |                 </div> {
+  digest: '2633459038'
+}
+ GET /admin/catalogs 500 in 541ms
+ GET /favicon.ico 200 in 297ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 78ms
+ ⨯ ReferenceError: availableQuery is not defined
+    at <unknown> (src/app/admin/catalogs/page.tsx:242:28)
+    at Array.map (<anonymous>)
+    at CatalogsPage (src/app/admin/catalogs/page.tsx:39:26)
+  240 |                     placeholder="Search available..."
+  241 |                     className="h-8 w-40 rounded-md border border-gray-200 bg-white px-2 text-xs"
+> 242 |                     value={availableQuery}
+      |                            ^
+  243 |                     onChange={(e) => setAvailableQuery(e.target.value)}
+  244 |                   />
+  245 |                 </div> {
+  digest: '2633459038'
+}
+ GET /admin/catalogs 500 in 827ms
+ GET /favicon.ico 200 in 279ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 83ms
+ GET /admin/catalogs 200 in 490ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 357ms
+ ✓ Compiled in 161ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 2446ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 299ms
+ ✓ Compiled in 432ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 1414ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 252ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 264ms
+ GET /admin/catalogs 200 in 1079ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 323ms
+ ✓ Compiled in 526ms
+ ✓ Compiled in 292ms
+ ✓ Compiled in 265ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 750ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 233ms
+ ✓ Compiled in 404ms
+ ✓ Compiled in 155ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 1630ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 262ms
+ ✓ Compiled in 1615ms
+ ✓ Compiled in 658ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 101ms
+ ⨯ ReferenceError: storeSettingsExpanded is not defined
+    at <unknown> (src/app/admin/catalogs/page.tsx:112:34)
+    at Array.map (<anonymous>)
+    at CatalogsPage (src/app/admin/catalogs/page.tsx:39:26)
+  110 |                                 className="text-xs text-blue-600 hover:text-blue-800"
+  111 |                               >
+> 112 |                                 {storeSettingsExpanded[catalog.id] ? 'Hide Settings' : 'Show Settings'}
+      |                                  ^
+  113 |                               </button>
+  114 |                             </div>
+  115 |                              {
+  digest: '1714691954'
+}
+ GET /admin/catalogs 500 in 1590ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 367ms
+ GET /favicon.ico 200 in 314ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 113ms
+ GET /admin/catalogs 200 in 800ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 247ms
+ ✓ Compiled in 125ms
+ ✓ Compiled in 801ms
+ ✓ Compiled in 121ms
+ ✓ Compiled in 1216ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 5561ms
+ ✓ Compiled in 44ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 1097ms
+ ✓ Compiled in 1530ms
+ GET /favicon.ico 200 in 583ms
+ GET /admin/catalogs 200 in 1307ms
+ ✓ Compiled in 468ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin/catalogs 200 in 1989ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 265ms
+ ✓ Compiled in 763ms
+ ✓ Compiled in 551ms
+ ✓ Compiled in 323ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 963ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 318ms
+ ✓ Compiled in 255ms
+ ✓ Compiled in 669ms
+ ✓ Compiled in 198ms
+ ✓ Compiled in 144ms
+ ✓ Compiled in 188ms
+ GET /admin/tenants 200 in 381ms
+ GET /admin/catalogs 200 in 256ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 0ms
+ GET /admin/catalogs 200 in 735ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 292ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 146ms
+ GET /admin/catalogs 200 in 548ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 697ms
+ ✓ Compiled in 135ms
+ ✓ Compiled in 150ms
+ GET /admin/catalogs 200 in 1260ms
+ ✓ Compiled in 896ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 1855ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 320ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 199ms
+ GET /admin/catalogs 200 in 628ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 296ms
+ ✓ Compiled in 326ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 921ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 292ms
+ ✓ Compiled in 199ms
+ GET /admin/tenants 200 in 252ms
+ ✓ Compiled in 1098ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/tenants 200 in 4382ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 599ms
+ GET /admin/catalogs 200 in 1042ms
+ GET /admin/tenants 200 in 95ms
+ GET /admin/catalogs 200 in 346ms
+ GET /admin/tenants 200 in 117ms
+ GET /admin/catalogs 200 in 491ms
+ GET /admin/tenants 200 in 233ms
+ GET /admin/catalogs 200 in 757ms
+ GET /admin/tenants 200 in 58ms
+ GET /admin/tenants 200 in 1388ms
+ GET /admin/catalogs 200 in 116ms
+ GET /admin/catalogs 200 in 419ms
+ ✓ Compiled in 266ms
+ ✓ Compiled in 216ms
+ ✓ Compiled in 89ms
+ ✓ Compiled in 128ms
+ GET /admin/catalogs 200 in 1223ms
+ GET /admin/catalogs 200 in 305ms
+ ✓ Compiled in 545ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 1008ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 3329ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 367ms
+ GET /admin/catalogs 200 in 649ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 257ms
+ ✓ Compiled in 142ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 529ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 284ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 167ms
+ GET /admin/catalogs 200 in 453ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 387ms
+ ✓ Compiled in 163ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 710ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 239ms
+ ✓ Compiled in 186ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 401ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 302ms
+ ✓ Compiled in 211ms
+ ✓ Compiled in 148ms
+ ✓ Compiled in 346ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 183ms
+ ⨯ ReferenceError: currentCatalogs is not defined
+    at CatalogsPage (src/app/admin/catalogs/page.tsx:66:10)
+  64 |       
+  65 |       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+> 66 |         {currentCatalogs.map((catalog) => {
+     |          ^
+  67 |           const [showAllAssigned, setShowAllAssigned] = useState(false);
+  68 |
+  69 |           const availableAll = allStoresByCountry[catalog.country].filter( {
+  digest: '2252591393'
+}
+ GET /admin/catalogs 500 in 910ms
+ GET /favicon.ico 200 in 388ms
+ ✓ Compiled in 288ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ ReferenceError: currentCatalogs is not defined
+    at CatalogsPage (src/app/admin/catalogs/page.tsx:66:10)
+  64 |       
+  65 |       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+> 66 |         {currentCatalogs.map((catalog) => {
+     |          ^
+  67 |           const [showAllAssigned, setShowAllAssigned] = useState(false);
+  68 |
+  69 |           const availableAll = allStoresByCountry[catalog.country].filter( {
+  digest: '2252591393'
+}
+ GET /admin/catalogs 500 in 312ms
+ GET /favicon.ico 200 in 260ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 691ms
+ GET /admin/catalogs 200 in 331ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 362ms
+ ✓ Compiled in 333ms
+ GET /admin/catalogs 200 in 1354ms
+ GET /admin/catalogs 200 in 1367ms
+ ✓ Compiled in 249ms
+ ✓ Compiled in 1495ms
+ ✓ Compiled in 1043ms
+ ✓ Compiled in 533ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 1484ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 1997ms
+ ✓ Compiled in 765ms
+ ✓ Compiled in 181ms
+ ✓ Compiled in 310ms
+ ✓ Compiled in 2.2s
+ GET /admin/catalogs 200 in 3450ms
+ ✓ Compiled in 1007ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 655ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 1300ms
+ ✓ Compiled in 956ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin/catalogs 200 in 2110ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 633ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 320ms
+ GET /admin/catalogs 200 in 523ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 801ms
+ ⚠ Fast Refresh had to perform a full reload when ./components-playground/src/app/admin/_components/AdminDataProvider.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 214ms
+ GET /admin/catalogs 200 in 509ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 290ms
+ ✓ Compiled in 133ms
+ ✓ Compiled in 141ms
+ ✓ Compiled in 111ms
+ ✓ Compiled /admin/catalogs in 268ms
+ GET /admin/catalogs 200 in 1073ms
+ ✓ Compiled in 564ms
+ ✓ Compiled in 355ms
+ ✓ Compiled in 377ms
+ ✓ Compiled /admin/catalogs in 357ms
+ GET /admin/catalogs 200 in 914ms
+ GET /admin/catalogs 200 in 875ms
+ GET /admin/catalogs 200 in 2763ms
+ ✓ Compiled in 760ms
+ ✓ Compiled in 700ms
+ ✓ Compiled in 1563ms
+ ✓ Compiled in 518ms
+ ✓ Compiled in 397ms
+ ✓ Compiled in 440ms
+ ✓ Compiled in 247ms
+ ✓ Compiled in 312ms
+ GET /admin/catalogs 200 in 6937ms
+[?25h
