@@ -241,7 +241,7 @@ export default function StoresPage() {
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Combos</h2>
             <p className="text-sm text-gray-600">
-              Create combos that mix brands from stores. Combos are per currency - you can't mix currencies.
+              Create combos that mix brands from stores. Combos are per currency - you can&apos;t mix currencies.
             </p>
           </div>
           <button

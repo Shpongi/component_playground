@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useAdminData } from "../../_components/AdminDataProvider";
 import { useParams, useRouter } from "next/navigation";
-import type { SwapListStatus, Currency } from "../../_components/AdminDataProvider";
+import type { SwapListStatus, Currency, Product } from "../../_components/AdminDataProvider";
 
 export default function RedemptionListEditPage() {
   const params = useParams();
@@ -112,7 +112,7 @@ export default function RedemptionListEditPage() {
     // This works for both new and existing lists
     
     // Get all products from all stores
-    const allProducts: any[] = [];
+    const allProducts: Product[] = [];
     stores.forEach(store => {
       store.products.forEach(product => {
         const eligibility = productSwapEligibility[product.id] || {};

@@ -322,7 +322,7 @@ export default function TenantsPage() {
             <div className="p-6 overflow-y-auto flex-1">
               {previewStores.length === 0 && previewComboInstances.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">No stores or combo cards available for this tenant's catalog.</p>
+                  <p className="text-gray-500">No stores or combo cards available for this tenant&apos;s catalog.</p>
                 </div>
               ) : (
                 <div className="space-y-6">

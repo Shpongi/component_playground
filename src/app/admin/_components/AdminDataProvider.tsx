@@ -410,7 +410,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     const allCatalogs = [...usCatalogs, ...caCatalogs, ...gbCatalogs];
     
     // Add some sample discounts to demonstrate the feature
-    allCatalogs.forEach((catalog, index) => {
+    allCatalogs.forEach((catalog) => {
       if (catalog.stores.length > 0) {
         // Only set discount values for 4 specific stores across different catalogs
         // Using first 4 brands: Amazon, Apple, Google, Microsoft
@@ -526,7 +526,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       if (savedMasterCombos) {
         try {
           const parsed = JSON.parse(savedMasterCombos);
-          setMasterCombos(parsed.map((c: any) => ({
+          setMasterCombos(parsed.map((c: Omit<MasterCombo, 'dateModified'> & { dateModified?: string }) => ({
             ...c,
             dateModified: c.dateModified ? new Date(c.dateModified) : new Date(),
           })));
@@ -539,7 +539,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       if (savedComboInstances) {
         try {
           const parsed = JSON.parse(savedComboInstances);
-          setComboInstances(parsed.map((c: any) => ({
+          setComboInstances(parsed.map((c: Omit<ComboInstance, 'dateModified'> & { dateModified?: string }) => ({
             ...c,
             dateModified: c.dateModified ? new Date(c.dateModified) : new Date(),
           })));
@@ -1169,12 +1169,12 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   function getTenantsUsingSwapList(swapListId: string): Tenant[] {
     // Find all catalogs that have this swap list as their default swap rule
     const catalogsUsingSwapList = Object.entries(catalogSwapRules)
-      .filter(([_, listId]) => listId === swapListId)
+      .filter(([, listId]) => listId === swapListId)
       .map(([catalogId]) => catalogId);
 
     // Find all tenants that have those catalogs as their active catalog
     const tenantIds = Object.entries(activeCatalogByTenant)
-      .filter(([_, catalogId]) => catalogsUsingSwapList.includes(catalogId))
+      .filter(([, catalogId]) => catalogsUsingSwapList.includes(catalogId))
       .map(([tenantId]) => tenantId);
 
     return tenants.filter(tenant => tenantIds.includes(tenant.id));

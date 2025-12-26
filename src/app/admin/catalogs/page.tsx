@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
-import type { Fee, FeeType } from "../_components/AdminDataProvider";
+import type { Fee, FeeType, Catalog, ComboInstance } from "../_components/AdminDataProvider";
 
 export default function CatalogsPage() {
   const { 
@@ -120,19 +120,19 @@ export default function CatalogsPage() {
     }
   };
 
-  const getAvailableTenantsForCatalog = (catalog: any) => {
+  const getAvailableTenantsForCatalog = (catalog: Catalog) => {
     return tenants.filter(tenant => 
       tenant.country === catalog.country && 
       getTenantsForCatalog(catalog.id).every(t => t.id !== tenant.id)
     );
   };
 
-  const getAvailableStoresForCatalog = (catalog: any) => {
+  const getAvailableStoresForCatalog = (catalog: Catalog) => {
     const effective = getEffectiveCatalog(catalog.id).stores.map(s => s.name);
     return stores.filter(s => s.country === catalog.country && !effective.includes(s.name));
   };
 
-  const getAvailableCombosForCatalog = (catalog: any) => {
+  const getAvailableCombosForCatalog = (catalog: Catalog) => {
     // Filter combos by currency matching the catalog's currency
     return combos.filter(combo => 
       combo.currency === catalog.currency && 
@@ -175,7 +175,7 @@ export default function CatalogsPage() {
     return currency;
   };
 
-  const handleEditComboInstance = (instance: any) => {
+  const handleEditComboInstance = (instance: ComboInstance) => {
     setComboInstanceFormData(prev => ({
       ...prev,
       [instance.catalogId]: {
@@ -1163,7 +1163,7 @@ export default function CatalogsPage() {
                     return master ? (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded">
                         <p className="text-sm text-blue-800">
-                          ✓ This combo includes {master.storeNames.length} stores from "{master.name}"
+                          ✓ This combo includes {master.storeNames.length} stores from &quot;{master.name}&quot;
                         </p>
                         <p className="text-xs text-blue-600 mt-1">
                           Note: Changes to {master.name} will automatically update this combo instance.
