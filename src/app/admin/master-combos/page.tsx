@@ -40,11 +40,11 @@ export default function MasterCombosPage() {
 
   const handleCreate = () => {
     if (!formData.name.trim() || formData.storeNames.length === 0) {
-      alert("Please provide a master combo name and select at least one store");
+      alert("Please provide a default combo name and select at least one store");
       return;
     }
     if (masterCombos.some(c => c.name.toLowerCase() === formData.name.trim().toLowerCase())) {
-      alert("A master combo with this name already exists. Please choose a unique name.");
+      alert("A default combo with this name already exists. Please choose a unique name.");
       return;
     }
     createMasterCombo({
@@ -73,7 +73,7 @@ export default function MasterCombosPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this master combo? This will also delete all combo instances based on it.")) {
+    if (confirm("Are you sure you want to delete this default combo? This will also delete all combo instances based on it.")) {
       deleteMasterCombo(id);
     }
   };
@@ -110,7 +110,7 @@ export default function MasterCombosPage() {
       <header className="space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Master Combos</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Default Combos</h1>
             <p className="text-sm text-gray-600">
               Create global combo templates that define store lists. These can be used by tenants to create branded combo instances.
             </p>
@@ -123,15 +123,15 @@ export default function MasterCombosPage() {
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
           >
-            + Create Master Combo
+            + Create Default Combo
           </button>
         </div>
       </header>
 
-      {/* Master Combos List */}
+      {/* Default Combos List */}
       {masterCombos.length === 0 ? (
         <div className="text-center py-12 text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
-          <p>No master combos created yet. Create your first master combo to get started.</p>
+          <p>No default combos created yet. Create your first default combo to get started.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -221,7 +221,7 @@ export default function MasterCombosPage() {
           >
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold">
-                {editingCombo ? "Edit Master Combo" : "Create Master Combo"}
+                {editingCombo ? "Edit Default Combo" : "Create Default Combo"}
               </h3>
               <button
                 onClick={() => {
@@ -240,7 +240,7 @@ export default function MasterCombosPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Master Combo Name <span className="text-red-500">*</span>
+                    Default Combo Name <span className="text-red-500">*</span>
                     {editingCombo && (
                       <span className="text-xs text-gray-500 ml-2">(Cannot be changed)</span>
                     )}
@@ -344,7 +344,7 @@ export default function MasterCombosPage() {
                 onClick={editingCombo ? handleUpdate : handleCreate}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
               >
-                {editingCombo ? "Update Master Combo" : "Create Master Combo"}
+                {editingCombo ? "Update Default Combo" : "Create Default Combo"}
               </button>
             </div>
           </div>

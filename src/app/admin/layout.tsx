@@ -1,9 +1,18 @@
+"use client";
+
 import AdminNav from "./_components/AdminNav";
 import { AdminDataProvider } from "./_components/AdminDataProvider";
+import { AuthProvider } from "./_components/AuthProvider";
+import { usePathname } from "next/navigation";
 
-export default function AdminLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+function AdminContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/admin/login";
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
   return (
     <AdminDataProvider>
       <div className="min-h-screen flex flex-col">
@@ -13,6 +22,16 @@ export default function AdminLayout({
         </main>
       </div>
     </AdminDataProvider>
+  );
+}
+
+export default function AdminLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <AuthProvider>
+      <AdminContent>{children}</AdminContent>
+    </AuthProvider>
   );
 }
 

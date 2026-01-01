@@ -1119,7 +1119,7 @@ export default function CatalogsPage() {
                           className="text-blue-600"
                         />
                         <div className="flex-1">
-                          <span className="text-sm font-medium">Use existing Master Combo</span>
+                          <span className="text-sm font-medium">Use existing Default Combo</span>
                           <select
                             value={formData.masterComboId || ""}
                             onChange={(e) => {
@@ -1131,7 +1131,7 @@ export default function CatalogsPage() {
                             className="mt-1 w-full text-sm border border-gray-300 rounded px-2 py-1"
                             disabled={formData.masterComboId === null}
                           >
-                            <option value="">Select a master combo</option>
+                            <option value="">Select a default combo</option>
                             {availableMasterCombos.map(m => (
                               <option key={m.id} value={m.id}>
                                 {m.name} ({m.storeNames.length} stores)

@@ -37,7 +37,7 @@ export type SwapList = {
   dateModified: Date;
 };
 
-// Master Combo - Global template
+// Default Combo - Global template
 export type MasterCombo = {
   id: string;
   name: string; // Internal name, e.g., "Master Top 20"
@@ -140,7 +140,7 @@ type AdminDataContextValue = {
   // Add/remove tenants from swap list
   addTenantToSwapList: (swapListId: string, tenantId: string) => void;
   removeTenantFromSwapList: (swapListId: string, tenantId: string) => void;
-  // Master Combo management
+  // Default Combo management
   masterCombos: MasterCombo[];
   createMasterCombo: (combo: Omit<MasterCombo, 'id' | 'dateModified'>) => string;
   updateMasterCombo: (id: string, updates: Partial<MasterCombo>) => void;
@@ -510,7 +510,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   // Catalog swap rules
   const [catalogSwapRules, setCatalogSwapRules] = useState<Record<string, string>>({});
 
-  // Master Combos state - initialize empty, load from localStorage in useEffect
+  // Default Combos state - initialize empty, load from localStorage in useEffect
   const [masterCombos, setMasterCombos] = useState<MasterCombo[]>([]);
 
   // Combo Instances state - initialize empty, load from localStorage in useEffect
@@ -559,7 +559,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Save master combos to localStorage whenever they change
+  // Save default combos to localStorage whenever they change
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('admin-master-combos', JSON.stringify(masterCombos));
@@ -1180,7 +1180,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return tenants.filter(tenant => tenantIds.includes(tenant.id));
   }
 
-  // Master Combo management functions
+  // Default Combo management functions
   function createMasterCombo(combo: Omit<MasterCombo, 'id' | 'dateModified'>): string {
     const id = `master-combo-${Date.now()}`;
     const newCombo: MasterCombo = {
