@@ -44,6 +44,7 @@ export type MasterCombo = {
   currency: Currency;
   storeNames: string[];
   isActive: boolean;
+  imageUrl?: string;
   dateModified: Date;
 };
 

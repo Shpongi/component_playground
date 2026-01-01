@@ -22,6 +22,7 @@ export default function MasterCombosPage() {
     currency: "USD" as Currency,
     storeNames: [] as string[],
     isActive: true,
+    imageUrl: "",
   });
 
   // Get stores by currency
@@ -52,8 +53,9 @@ export default function MasterCombosPage() {
       currency: formData.currency,
       storeNames: formData.storeNames,
       isActive: formData.isActive,
+      imageUrl: formData.imageUrl.trim() || undefined,
     });
-    setFormData({ name: "", currency: "USD", storeNames: [], isActive: true });
+    setFormData({ name: "", currency: "USD", storeNames: [], isActive: true, imageUrl: "" });
     setShowForm(false);
   };
 
@@ -66,9 +68,10 @@ export default function MasterCombosPage() {
       currency: formData.currency,
       storeNames: formData.storeNames,
       isActive: formData.isActive,
+      imageUrl: formData.imageUrl.trim() || undefined,
     });
     setEditingCombo(null);
-    setFormData({ name: "", currency: "USD", storeNames: [], isActive: true });
+    setFormData({ name: "", currency: "USD", storeNames: [], isActive: true, imageUrl: "" });
     setShowForm(false);
   };
 
@@ -85,6 +88,7 @@ export default function MasterCombosPage() {
       currency: combo.currency,
       storeNames: [...combo.storeNames],
       isActive: combo.isActive,
+      imageUrl: combo.imageUrl || "",
     });
     setShowForm(true);
   };
@@ -118,7 +122,7 @@ export default function MasterCombosPage() {
           <button
             onClick={() => {
               setEditingCombo(null);
-              setFormData({ name: "", currency: "USD", storeNames: [], isActive: true });
+              setFormData({ name: "", currency: "USD", storeNames: [], isActive: true, imageUrl: "" });
               setShowForm(true);
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
@@ -144,6 +148,24 @@ export default function MasterCombosPage() {
                   : "border-gray-300 bg-gray-50 opacity-60"
               }`}
             >
+              {/* Combo Image */}
+              {combo.imageUrl && combo.imageUrl.trim() !== "" && (
+                <div className="mb-3 w-full h-32 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                  <img
+                    src={combo.imageUrl}
+                    alt={combo.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = '<div class="text-xs text-gray-400 text-center p-4">Image failed to load</div>';
+                      }
+                    }}
+                  />
+                </div>
+              )}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <h3 className="text-base font-medium text-gray-900">{combo.name}</h3>
@@ -212,7 +234,7 @@ export default function MasterCombosPage() {
           onClick={() => {
             setShowForm(false);
             setEditingCombo(null);
-            setFormData({ name: "", currency: "USD", storeNames: [], isActive: true });
+            setFormData({ name: "", currency: "USD", storeNames: [], isActive: true, imageUrl: "" });
           }}
         >
           <div
@@ -227,7 +249,7 @@ export default function MasterCombosPage() {
                 onClick={() => {
                   setShowForm(false);
                   setEditingCombo(null);
-                  setFormData({ name: "", currency: "USD", storeNames: [], isActive: true });
+                  setFormData({ name: "", currency: "USD", storeNames: [], isActive: true, imageUrl: "" });
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -259,6 +281,32 @@ export default function MasterCombosPage() {
                     <p className="text-xs text-gray-500 mt-1">
                       This name cannot be changed after creation. Choose carefully.
                     </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Image URL
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                  {formData.imageUrl && (
+                    <div className="mt-2 w-full h-32 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                      <img
+                        src={formData.imageUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -334,7 +382,7 @@ export default function MasterCombosPage() {
                 onClick={() => {
                   setShowForm(false);
                   setEditingCombo(null);
-                  setFormData({ name: "", currency: "USD", storeNames: [], isActive: true });
+                  setFormData({ name: "", currency: "USD", storeNames: [], isActive: true, imageUrl: "" });
                 }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm font-medium"
               >
