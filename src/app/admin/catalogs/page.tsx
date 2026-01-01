@@ -8,6 +8,7 @@ export default function CatalogsPage() {
   const { 
     catalogs, 
     stores, 
+    getActiveStores,
     combos, 
     masterCombos,
     comboInstances,
@@ -129,14 +130,19 @@ export default function CatalogsPage() {
 
   const getAvailableStoresForCatalog = (catalog: Catalog) => {
     const effective = getEffectiveCatalog(catalog.id).stores.map(s => s.name);
-    return stores.filter(s => s.country === catalog.country && !effective.includes(s.name));
+    // Only show active stores that aren't already in the catalog
+    return getActiveStores().filter(s => s.country === catalog.country && !effective.includes(s.name));
   };
 
   const getAvailableCombosForCatalog = (catalog: Catalog) => {
     // Filter combos by currency matching the catalog's currency
+    // Also filter out combos that contain inactive stores
+    const activeStoreNames = new Set(getActiveStores().map(s => s.name));
     return combos.filter(combo => 
       combo.currency === catalog.currency && 
       combo.isActive &&
+      // Only include combos where all stores are active
+      combo.storeNames.every(storeName => activeStoreNames.has(storeName)) &&
       // Check if any stores from the combo are not already in the catalog
       combo.storeNames.some(storeName => {
         const effective = getEffectiveCatalog(catalog.id).stores.map(s => s.name);

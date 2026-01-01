@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
 import type { Combo, Currency } from "../_components/AdminDataProvider";
 
@@ -68,33 +68,25 @@ function generateStores(): Store[] {
 }
 
 export default function StoresPage() {
-  const { stores: adminStores } = useAdminData();
-  // Map AdminDataProvider stores to local Store format with isActive
-  const [storeActiveState, setStoreActiveState] = useState<Record<string, boolean>>(() => {
-    const state: Record<string, boolean> = {};
-    adminStores.forEach(s => {
-      const key = `${s.country}-${s.name}`;
-      state[key] = true; // Default to active
-    });
-    return state;
-  });
-  
-  const stores: Store[] = useMemo(() => {
-    return adminStores.map(s => ({
-      id: `${s.country.toLowerCase()}-${s.name.toLowerCase().replace(/\s+/g, '-')}`,
-      name: s.name,
-      country: s.country,
-      isActive: storeActiveState[`${s.country}-${s.name}`] ?? true,
-    }));
-  }, [adminStores, storeActiveState]);
-
   const { 
+    stores: adminStores, 
+    isStoreActive, 
+    toggleStoreActive,
     combos, 
     createCombo, 
     updateCombo, 
     deleteCombo, 
     toggleComboActive 
   } = useAdminData();
+  
+  const stores: Store[] = useMemo(() => {
+    return adminStores.map(s => ({
+      id: `${s.country.toLowerCase()}-${s.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: s.name,
+      country: s.country,
+      isActive: isStoreActive(s.name, s.country),
+    }));
+  }, [adminStores, isStoreActive]);
   const [showComboForm, setShowComboForm] = useState(false);
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
   const [comboFormData, setComboFormData] = useState({
@@ -107,14 +99,10 @@ export default function StoresPage() {
 
   const availableDenominations = [5, 10, 25, 50, 100, 200, 500];
 
-  const toggleStoreActive = (storeId: string) => {
+  const handleToggleStoreActive = (storeId: string) => {
     const store = stores.find(s => s.id === storeId);
     if (store) {
-      const key = `${store.country}-${store.name}`;
-      setStoreActiveState(prev => ({
-        ...prev,
-        [key]: !prev[key],
-      }));
+      toggleStoreActive(store.name, store.country);
     }
   };
 
@@ -593,7 +581,7 @@ export default function StoresPage() {
                   <input
                     type="checkbox"
                     checked={store.isActive}
-                    onChange={() => toggleStoreActive(store.id)}
+                    onChange={() => handleToggleStoreActive(store.id)}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>

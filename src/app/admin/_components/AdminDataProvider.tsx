@@ -164,6 +164,10 @@ type AdminDataContextValue = {
   toggleComboActive: (id: string) => void;
   // Internal state access for preview
   productSwapEligibility: Record<string, { comboProduct?: boolean; containsAlcohol?: boolean; lowMargin?: boolean }>;
+  // Store active state management
+  isStoreActive: (storeName: string, country: Country) => boolean;
+  toggleStoreActive: (storeName: string, country: Country) => void;
+  getActiveStores: () => Store[];
 };
 
 const AdminDataContext = createContext<AdminDataContextValue | null>(null);
@@ -519,6 +523,50 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   // Legacy combos state - initialize empty, load from localStorage in useEffect
   const [combos, setCombos] = useState<Combo[]>([]);
 
+  // Store active state - load from localStorage
+  const [storeActiveState, setStoreActiveState] = useState<Record<string, boolean>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-store-active-state');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    // Default: all stores active
+    const state: Record<string, boolean> = {};
+    stores.forEach(s => {
+      const key = `${s.country}-${s.name}`;
+      state[key] = true;
+    });
+    return state;
+  });
+
+  // Initialize store active state for any new stores
+  useEffect(() => {
+    setStoreActiveState(prev => {
+      const updated = { ...prev };
+      let changed = false;
+      stores.forEach(s => {
+        const key = `${s.country}-${s.name}`;
+        if (!(key in updated)) {
+          updated[key] = true; // Default new stores to active
+          changed = true;
+        }
+      });
+      return changed ? updated : prev;
+    });
+  }, [stores]);
+
+  // Save store active state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-store-active-state', JSON.stringify(storeActiveState));
+    }
+  }, [storeActiveState]);
+
   // Load from localStorage after mount to prevent hydration errors
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -608,7 +656,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     setCatalogs((prev) => {
       return prev.map((c) => {
         if (c.id !== catalogId) return c;
-        const pool = stores.filter((s) => s.country === c.country);
+        // Only allow adding active stores
+        const pool = stores.filter((s) => s.country === c.country && isStoreActive(s.name, s.country));
         console.log(`[addStoresToCatalog] Catalog ${catalogId} (${c.country}) has ${pool.length} available stores`);
         console.log(`[addStoresToCatalog] Sample store names:`, pool.slice(0, 5).map(s => s.name));
         
@@ -868,7 +917,9 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     if (!catalog) throw new Error(`Catalog ${catalogId} not found`);
     
     if (!catalog.isBranch) {
-      return catalog; // Base catalogs are returned as-is
+      // Filter out inactive stores from base catalog
+      const activeStores = catalog.stores.filter(store => isStoreActive(store.name, store.country));
+      return { ...catalog, stores: activeStores };
     }
     
     // For branches, merge with parent
@@ -934,6 +985,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       });
       merged = { ...merged, stores: ordered };
     }
+
+    // Filter out inactive stores
+    const activeStores = merged.stores.filter(store => isStoreActive(store.name, store.country));
+    merged = { ...merged, stores: activeStores };
 
     return merged;
   }
@@ -1315,6 +1370,24 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Store active state management functions
+  function isStoreActive(storeName: string, country: Country): boolean {
+    const key = `${country}-${storeName}`;
+    return storeActiveState[key] ?? true; // Default to active if not set
+  }
+
+  function toggleStoreActive(storeName: string, country: Country) {
+    const key = `${country}-${storeName}`;
+    setStoreActiveState(prev => ({
+      ...prev,
+      [key]: !(prev[key] ?? true),
+    }));
+  }
+
+  function getActiveStores(): Store[] {
+    return stores.filter(store => isStoreActive(store.name, store.country));
+  }
+
   const value: AdminDataContextValue = {
     tenants,
     stores,
@@ -1369,6 +1442,9 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     getCombo,
     toggleComboActive,
     productSwapEligibility,
+    isStoreActive,
+    toggleStoreActive,
+    getActiveStores,
   };
 
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;
