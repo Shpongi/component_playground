@@ -326,61 +326,6 @@ export default function TenantsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Regular Stores */}
-                  {previewStores.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Stores ({previewStores.length})</h4>
-                      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-4">
-                        {previewStores.map((store) => {
-                          const logoUrl = getBrandLogoUrl(store.name);
-                          const initials = store.name
-                            .split(" ")
-                            .map(word => word[0])
-                            .join("")
-                            .substring(0, 2)
-                            .toUpperCase();
-                          const discount = previewDiscounts[store.name] || 0;
-
-                          return (
-                            <div
-                              key={store.name}
-                              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white relative"
-                            >
-                              {discount > 0 && (
-                                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md z-10">
-                                  {discount}%
-                                </div>
-                              )}
-                              <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-200">
-                                <img
-                                  src={logoUrl}
-                                  alt={store.name}
-                                  className="w-full h-full object-contain"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const parent = target.parentElement;
-                                    if (parent) {
-                                      parent.innerHTML = `<span class="text-xs font-semibold text-gray-600">${initials}</span>`;
-                                    }
-                                  }}
-                                />
-                              </div>
-                              <span className="text-xs text-gray-700 text-center font-medium truncate w-full" title={store.name}>
-                                {store.name}
-                              </span>
-                              {discount > 0 && (
-                                <span className="text-[10px] text-green-600 font-semibold">
-                                  {discount}% OFF
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Combo Cards */}
                   {previewComboInstances.length > 0 && (
                     <div>
@@ -431,6 +376,61 @@ export default function TenantsPage() {
                                     <span className="text-[9px] text-gray-600">+{instance.denominations.length - 3}</span>
                                   )}
                                 </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Regular Stores */}
+                  {previewStores.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Stores ({previewStores.length})</h4>
+                      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-4">
+                        {previewStores.map((store) => {
+                          const logoUrl = getBrandLogoUrl(store.name);
+                          const initials = store.name
+                            .split(" ")
+                            .map(word => word[0])
+                            .join("")
+                            .substring(0, 2)
+                            .toUpperCase();
+                          const discount = previewDiscounts[store.name] || 0;
+
+                          return (
+                            <div
+                              key={store.name}
+                              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white relative"
+                            >
+                              {discount > 0 && (
+                                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md z-10">
+                                  {discount}%
+                                </div>
+                              )}
+                              <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-200">
+                                <img
+                                  src={logoUrl}
+                                  alt={store.name}
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = `<span class="text-xs font-semibold text-gray-600">${initials}</span>`;
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs text-gray-700 text-center font-medium truncate w-full" title={store.name}>
+                                {store.name}
+                              </span>
+                              {discount > 0 && (
+                                <span className="text-[10px] text-green-600 font-semibold">
+                                  {discount}% OFF
+                                </span>
                               )}
                             </div>
                           );
