@@ -58,9 +58,18 @@ function TenantDiscountsSection({ tenant, stores, setTenantStoreDiscount }: { te
 function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility, tenantHiddenStores }: { tenant: Tenant; stores: Store[]; setTenantStoreVisibility: (tenantId: string, storeName: string, hidden: boolean) => void; tenantHiddenStores: Record<string, Set<string>> }) {
   const hiddenStores = tenantHiddenStores[tenant.id] || new Set<string>();
   const [expanded, setExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const tenantStores = stores.filter(s => s.country === tenant.country);
   const hasHiddenStores = hiddenStores.size > 0;
+  
+  // Get hidden stores list
+  const hiddenStoresList = Array.from(hiddenStores);
+  
+  // Get available stores to hide (stores that are not currently hidden)
+  const availableStores = tenantStores
+    .filter(s => !hiddenStores.has(s.name))
+    .filter(s => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
   
   return (
     <div className="expandable-section">
@@ -76,27 +85,65 @@ function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility
       </button>
       {expanded && (
         <div className="expandable-content">
-          <div className="text-[10px] text-gray-500 mb-2">
+          <div className="text-[10px] text-gray-500 mb-3">
             Hide stores that should not be available to this tenant. Hidden stores will not appear in the catalog for this tenant.
           </div>
-          <div className="grid-responsive">
-            {tenantStores.map(store => {
-              const isHidden = hiddenStores.has(store.name);
-              return (
-                <label key={store.name} className="flex items-center gap-2 p-2 rounded border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isHidden}
-                    onChange={(e) => setTenantStoreVisibility(tenant.id, store.name, e.target.checked)}
-                    className="rounded border-gray-300 text-red-600"
-                  />
-                  <span className={`text-xs flex-1 ${isHidden ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                    {store.name}
-                  </span>
-                  {isHidden && <span className="badge badge-danger text-[10px]">Hidden</span>}
-                </label>
-              );
-            })}
+          
+          {/* Currently Hidden Stores */}
+          {hiddenStoresList.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-medium text-gray-700 mb-2">Hidden Stores ({hiddenStoresList.length})</div>
+              <div className="flex flex-wrap gap-2">
+                {hiddenStoresList.map(storeName => {
+                  const store = tenantStores.find(s => s.name === storeName);
+                  if (!store) return null;
+                  return (
+                    <div key={storeName} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-md">
+                      <span className="text-xs text-gray-700">{storeName}</span>
+                      <button
+                        onClick={() => setTenantStoreVisibility(tenant.id, storeName, false)}
+                        className="text-red-600 hover:text-red-800 text-xs font-medium"
+                        title="Show this store"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Search Bar to Add Stores */}
+          <div>
+            <div className="text-xs font-medium text-gray-700 mb-2">Add Store to Hide</div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search stores to hide..."
+              className="input input-sm mb-2"
+            />
+            {searchQuery && availableStores.length > 0 && (
+              <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white">
+                {availableStores.map(store => (
+                  <button
+                    key={store.name}
+                    onClick={() => {
+                      setTenantStoreVisibility(tenant.id, store.name, true);
+                      setSearchQuery("");
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center justify-between"
+                  >
+                    <span className="text-gray-700">{store.name}</span>
+                    <span className="text-gray-400 text-[10px]">Click to hide</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchQuery && availableStores.length === 0 && (
+              <div className="text-xs text-gray-500 p-2">No stores found matching "{searchQuery}"</div>
+            )}
           </div>
         </div>
       )}
