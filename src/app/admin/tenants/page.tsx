@@ -151,7 +151,8 @@ function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility
   );
 }
 
-function TenantStoreOrderSection({ tenant, activeId, updateTenantStoreOrder, tenantStoreOrder, getEffectiveCatalogForTenant }: { tenant: Tenant; activeId: string; updateTenantStoreOrder: (tenantId: string, storeOrder: string[]) => void; tenantStoreOrder: Record<string, string[]>; getEffectiveCatalogForTenant: (tenantId: string, catalogId: string) => any }) {
+function TenantStoreOrderSection({ tenant, activeId, updateTenantStoreOrder, tenantStoreOrder }: { tenant: Tenant; activeId: string; updateTenantStoreOrder: (tenantId: string, storeOrder: string[]) => void; tenantStoreOrder: Record<string, string[]> }) {
+  const { getEffectiveCatalogForTenant } = useAdminData();
   const [expanded, setExpanded] = useState(false);
   const customOrder = tenantStoreOrder[tenant.id] || [];
   const hasCustomOrder = customOrder.length > 0;
@@ -254,7 +255,6 @@ export default function TenantsPage() {
     updateTenantStoreOrder,
     tenantStoreOrder,
     stores,
-    getEffectiveCatalogForTenant,
   } = useAdminData();
   const [previewTenantId, setPreviewTenantId] = useState<string | null>(null);
   const [previewCurrency, setPreviewCurrency] = useState<"USD" | "CAD" | "GBP" | null>(null);
@@ -539,7 +539,7 @@ export default function TenantsPage() {
                     {/* Tenant-specific store visibility section */}
                     <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
                     {/* Tenant-specific store order section */}
-                    <TenantStoreOrderSection tenant={tenant} activeId={activeId} updateTenantStoreOrder={updateTenantStoreOrder} tenantStoreOrder={tenantStoreOrder} getEffectiveCatalogForTenant={getEffectiveCatalogForTenant} />
+                    <TenantStoreOrderSection tenant={tenant} activeId={activeId} updateTenantStoreOrder={updateTenantStoreOrder} tenantStoreOrder={tenantStoreOrder} />
                   </>
                 )}
                 {/* Branch catalog info */}
