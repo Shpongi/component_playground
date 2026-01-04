@@ -8,7 +8,6 @@ import { useAuth } from "./AuthProvider";
     { href: "/admin/catalogs", label: "Catalogs" },
     { href: "/admin/tenants", label: "Tenants" },
     { href: "/admin/stores", label: "Stores" },
-    { href: "/admin/products", label: "Products" },
     { href: "/admin/redemption", label: "Redemption" },
     { href: "/admin/master-combos", label: "Default Combos" },
   ];
