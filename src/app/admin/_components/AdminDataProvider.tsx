@@ -121,6 +121,8 @@ type AdminDataContextValue = {
   removeTenantFromCatalog: (catalogId: string, tenantId: string) => void;
   setTenantStoreDiscount: (tenantId: string, storeName: string, discount: number) => void;
   tenantStoreDiscounts: Record<string, Record<string, number>>;
+  setTenantStoreVisibility: (tenantId: string, storeName: string, hidden: boolean) => void;
+  tenantHiddenStores: Record<string, Set<string>>;
   moveStoreInCatalog: (catalogId: string, storeName: string, direction: 'up' | 'down') => void;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
   setCatalogFee: (catalogId: string, fee: Fee | null) => void;
@@ -623,12 +625,62 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tenants]);
 
+  // Initialize store visibility: Hide Amazon for NG Tenant1, show for HappyTenant1
+  useEffect(() => {
+    const ngTenant1 = tenants.find(t => t.name === "NG Tenant1");
+    if (ngTenant1) {
+      setTenantHiddenStores(prev => {
+        const current = prev[ngTenant1.id] || new Set<string>();
+        if (!current.has("Amazon")) {
+          const updated = { ...prev };
+          updated[ngTenant1.id] = new Set([...current, "Amazon"]);
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, [tenants]);
+
   // Save tenant store discounts to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('admin-tenant-store-discounts', JSON.stringify(tenantStoreDiscounts));
     }
   }, [tenantStoreDiscounts]);
+
+  // Tenant-specific store visibility (tenantId -> storeName -> hidden)
+  // If a store is in this map for a tenant, it means it's HIDDEN for that tenant
+  const [tenantHiddenStores, setTenantHiddenStores] = useState<Record<string, Set<string>>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-hidden-stores');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // Convert arrays back to Sets
+          const result: Record<string, Set<string>> = {};
+          Object.entries(parsed).forEach(([tenantId, stores]) => {
+            result[tenantId] = new Set(stores as string[]);
+          });
+          return result;
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save tenant hidden stores to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Convert Sets to arrays for JSON serialization
+      const serializable: Record<string, string[]> = {};
+      Object.entries(tenantHiddenStores).forEach(([tenantId, stores]) => {
+        serializable[tenantId] = Array.from(stores);
+      });
+      localStorage.setItem('admin-tenant-hidden-stores', JSON.stringify(serializable));
+    }
+  }, [tenantHiddenStores]);
 
   // Default Combos state - initialize empty, load from localStorage in useEffect
   const [masterCombos, setMasterCombos] = useState<MasterCombo[]>([]);
@@ -1037,6 +1089,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   function getEffectiveCatalogForTenant(tenantId: string, catalogId: string): Catalog {
     const baseCatalog = getEffectiveCatalog(catalogId);
     const tenantDiscounts = tenantStoreDiscounts[tenantId] || {};
+    const hiddenStores = tenantHiddenStores[tenantId] || new Set<string>();
+    
+    // Filter out stores that are hidden for this tenant
+    const visibleStores = baseCatalog.stores.filter(store => !hiddenStores.has(store.name));
     
     // Apply tenant-specific discounts on top of catalog discounts
     const effectiveDiscounts = { ...baseCatalog.storeDiscounts };
@@ -1051,6 +1107,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     
     return {
       ...baseCatalog,
+      stores: visibleStores,
       storeDiscounts: effectiveDiscounts,
     };
   }
@@ -1233,6 +1290,27 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         return { ...prev, [tenantId]: [...current, catalogId] };
       }
       return prev;
+    });
+  }
+
+  function setTenantStoreVisibility(tenantId: string, storeName: string, hidden: boolean) {
+    setTenantHiddenStores(prev => {
+      const updated = { ...prev };
+      const tenantHidden = updated[tenantId] || new Set<string>();
+      
+      if (hidden) {
+        tenantHidden.add(storeName);
+      } else {
+        tenantHidden.delete(storeName);
+      }
+      
+      if (tenantHidden.size === 0) {
+        delete updated[tenantId];
+      } else {
+        updated[tenantId] = tenantHidden;
+      }
+      
+      return updated;
     });
   }
 
@@ -1609,6 +1687,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     removeTenantFromCatalog,
     setTenantStoreDiscount,
     tenantStoreDiscounts,
+    setTenantStoreVisibility,
+    tenantHiddenStores,
     moveStoreInCatalog,
     setStoreFee,
     setCatalogFee,
