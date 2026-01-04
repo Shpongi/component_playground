@@ -123,6 +123,8 @@ type AdminDataContextValue = {
   tenantStoreDiscounts: Record<string, Record<string, number>>;
   setTenantStoreVisibility: (tenantId: string, storeName: string, hidden: boolean) => void;
   tenantHiddenStores: Record<string, Set<string>>;
+  updateTenantStoreOrder: (tenantId: string, storeOrder: string[]) => void;
+  tenantStoreOrder: Record<string, string[]>;
   moveStoreInCatalog: (catalogId: string, storeName: string, direction: 'up' | 'down') => void;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
   setCatalogFee: (catalogId: string, fee: Fee | null) => void;
@@ -755,6 +757,28 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tenantHiddenStores]);
 
+  // Tenant-specific store order (tenantId -> storeName[])
+  const [tenantStoreOrder, setTenantStoreOrder] = useState<Record<string, string[]>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-store-order');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save tenant store order to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-store-order', JSON.stringify(tenantStoreOrder));
+    }
+  }, [tenantStoreOrder]);
+
   // Default Combos state - initialize empty, load from localStorage in useEffect
   const [masterCombos, setMasterCombos] = useState<MasterCombo[]>([]);
 
@@ -1163,9 +1187,30 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     const baseCatalog = getEffectiveCatalog(catalogId);
     const tenantDiscounts = tenantStoreDiscounts[tenantId] || {};
     const hiddenStores = tenantHiddenStores[tenantId] || new Set<string>();
+    const customOrder = tenantStoreOrder[tenantId];
     
     // Filter out stores that are hidden for this tenant
-    const visibleStores = baseCatalog.stores.filter(store => !hiddenStores.has(store.name));
+    let visibleStores = baseCatalog.stores.filter(store => !hiddenStores.has(store.name));
+    
+    // Apply tenant-specific store order if provided
+    if (customOrder && customOrder.length > 0) {
+      const storeMap = new Map(visibleStores.map(s => [s.name, s]));
+      const ordered: Store[] = [];
+      
+      // Add stores in custom order
+      customOrder.forEach(storeName => {
+        const store = storeMap.get(storeName);
+        if (store) {
+          ordered.push(store);
+          storeMap.delete(storeName);
+        }
+      });
+      
+      // Add any remaining stores that weren't in the custom order
+      storeMap.forEach(store => ordered.push(store));
+      
+      visibleStores = ordered;
+    }
     
     // Apply tenant-specific discounts on top of catalog discounts
     const effectiveDiscounts = { ...baseCatalog.storeDiscounts };
@@ -1363,6 +1408,17 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         return { ...prev, [tenantId]: [...current, catalogId] };
       }
       return prev;
+    });
+  }
+
+  function updateTenantStoreOrder(tenantId: string, storeOrder: string[]) {
+    setTenantStoreOrder(prev => {
+      if (storeOrder.length === 0) {
+        const updated = { ...prev };
+        delete updated[tenantId];
+        return updated;
+      }
+      return { ...prev, [tenantId]: storeOrder };
     });
   }
 
@@ -1762,6 +1818,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     tenantStoreDiscounts,
     setTenantStoreVisibility,
     tenantHiddenStores,
+    updateTenantStoreOrder,
+    tenantStoreOrder,
     moveStoreInCatalog,
     setStoreFee,
     setCatalogFee,

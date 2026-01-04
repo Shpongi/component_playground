@@ -166,7 +166,10 @@ export default function TenantsPage() {
     setTenantStoreDiscount,
     setTenantStoreVisibility,
     tenantHiddenStores,
+    updateTenantStoreOrder,
+    tenantStoreOrder,
     stores,
+    getEffectiveCatalogForTenant,
   } = useAdminData();
   const [previewTenantId, setPreviewTenantId] = useState<string | null>(null);
   const [previewCurrency, setPreviewCurrency] = useState<"USD" | "CAD" | "GBP" | null>(null);
@@ -446,12 +449,16 @@ export default function TenantsPage() {
                 </div>
                 {/* Tenant-specific discounts section - only show if not using a branch catalog */}
                 {!active?.isBranch && (
-                  <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
+                  <>
+                    <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
+                    {/* Tenant-specific store visibility section */}
+                    <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
+                    {/* Tenant-specific store order section */}
+                    <TenantStoreOrderSection tenant={tenant} activeId={activeId} updateTenantStoreOrder={updateTenantStoreOrder} tenantStoreOrder={tenantStoreOrder} getEffectiveCatalogForTenant={getEffectiveCatalogForTenant} />
+                  </>
                 )}
-                {/* Tenant-specific store visibility section - only show if not using a branch catalog */}
-                {!active?.isBranch ? (
-                  <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
-                ) : (
+                {/* Branch catalog info */}
+                {active?.isBranch && (
                   <div className="expandable-section">
                     <div className="text-xs text-gray-600 p-3 bg-blue-50 border border-blue-200 rounded">
                       <p className="font-medium text-blue-900 mb-1">Using Branch Catalog</p>
