@@ -270,15 +270,6 @@ export default function TenantsPage() {
                         </option>
                       ))}
                     </select>
-                    {!isUsingDefault && (
-                      <button
-                        onClick={() => setActiveCatalogForTenant(tenant.id, defaultCatalog?.id || "")}
-                        className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                        title="Reset to default catalog"
-                      >
-                        Reset to Default
-                      </button>
-                    )}
                   </div>
                 </div>
               </li>
