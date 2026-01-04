@@ -360,7 +360,7 @@ export default function TenantsPage() {
             const isUsingDefault = activeId === defaultCatalog?.id;
             
             return (
-              <li key={tenant.id} className="list-item">
+              <li key={tenant.id} className="list-item border border-gray-200 rounded-lg p-4 mb-3 bg-white">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
