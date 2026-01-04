@@ -151,6 +151,91 @@ function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility
   );
 }
 
+function TenantStoreOrderSection({ tenant, activeId, updateTenantStoreOrder, tenantStoreOrder, getEffectiveCatalogForTenant }: { tenant: Tenant; activeId: string; updateTenantStoreOrder: (tenantId: string, storeOrder: string[]) => void; tenantStoreOrder: Record<string, string[]>; getEffectiveCatalogForTenant: (tenantId: string, catalogId: string) => any }) {
+  const [expanded, setExpanded] = useState(false);
+  const customOrder = tenantStoreOrder[tenant.id] || [];
+  const hasCustomOrder = customOrder.length > 0;
+  
+  // Get current store order from effective catalog
+  const effectiveCatalog = getEffectiveCatalogForTenant(tenant.id, activeId);
+  const currentStoreOrder = effectiveCatalog.stores.map(s => s.name);
+  
+  const handleMoveStore = (storeName: string, direction: 'up' | 'down') => {
+    const order = hasCustomOrder ? [...customOrder] : [...currentStoreOrder];
+    const index = order.indexOf(storeName);
+    if (index === -1) return;
+    
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= order.length) return;
+    
+    [order[index], order[newIndex]] = [order[newIndex], order[index]];
+    updateTenantStoreOrder(tenant.id, order);
+  };
+  
+  const handleResetOrder = () => {
+    updateTenantStoreOrder(tenant.id, []);
+  };
+  
+  return (
+    <div className="expandable-section">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="expandable-header"
+      >
+        <span>Store Order</span>
+        {hasCustomOrder && <span className="badge badge-primary text-[10px]">Custom</span>}
+        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="expandable-content">
+          <div className="text-[10px] text-gray-500 mb-3">
+            Customize the order of stores for this tenant. Use the arrows to reorder stores.
+          </div>
+          
+          {hasCustomOrder && (
+            <div className="mb-3">
+              <button
+                onClick={handleResetOrder}
+                className="btn btn-secondary btn-xs mb-2"
+              >
+                Reset to Default Order
+              </button>
+            </div>
+          )}
+          
+          <div className="space-y-1 border border-gray-200 rounded-md p-2 bg-gray-50">
+            {currentStoreOrder.map((storeName, index) => (
+              <div key={storeName} className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200">
+                <div className="flex-1 text-xs text-gray-700">{storeName}</div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleMoveStore(storeName, 'up')}
+                    disabled={index === 0}
+                    className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Move up"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    onClick={() => handleMoveStore(storeName, 'down')}
+                    disabled={index === currentStoreOrder.length - 1}
+                    className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Move down"
+                  >
+                    ↓
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TenantsPage() {
   const { 
     tenants, 
