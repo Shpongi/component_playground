@@ -1137,9 +1137,26 @@ export default function CatalogsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Denominations
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Denominations
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allDenoms = [5, 10, 25, 50, 100, 200, 500];
+                          const allSelected = allDenoms.every(d => formData.denominations.includes(d));
+                          const newDenoms = allSelected ? [] : allDenoms;
+                          setComboInstanceFormData(prev => ({
+                            ...prev,
+                            [catalogId]: { ...formData, denominations: newDenoms }
+                          }));
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {[5, 10, 25, 50, 100, 200, 500].every(d => formData.denominations.includes(d)) ? "Deselect All" : "Select All"}
+                      </button>
+                    </div>
                     <div className="grid grid-cols-4 gap-2">
                       {[5, 10, 25, 50, 100, 200, 500].map(denom => (
                         <label
