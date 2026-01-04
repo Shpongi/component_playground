@@ -206,6 +206,88 @@ function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility
   );
 }
 
+function TenantFeaturesSection({ 
+  tenant, 
+  stores, 
+  activeId,
+  tenantFeatureFlags, 
+  setTenantFeatureFlag,
+  setTenantStoreDiscount,
+  setTenantStoreVisibility,
+  tenantHiddenStores,
+  updateTenantStoreOrder,
+  tenantStoreOrder
+}: { 
+  tenant: Tenant; 
+  stores: Store[]; 
+  activeId: string;
+  tenantFeatureFlags: Record<string, { discounts?: boolean; visibility?: boolean; order?: boolean }>;
+  setTenantFeatureFlag: (tenantId: string, feature: 'discounts' | 'visibility' | 'order', enabled: boolean) => void;
+  setTenantStoreDiscount: (tenantId: string, storeName: string, discount: number) => void;
+  setTenantStoreVisibility: (tenantId: string, storeName: string, hidden: boolean) => void;
+  tenantHiddenStores: Record<string, Set<string>>;
+  updateTenantStoreOrder: (tenantId: string, storeOrder: string[]) => void;
+  tenantStoreOrder: Record<string, string[]>;
+}) {
+  const flags = tenantFeatureFlags[tenant.id] || {};
+  const hasAnyFeature = flags.discounts || flags.visibility || flags.order;
+  
+  return (
+    <div className="expandable-section">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-xs font-medium text-gray-700">Tenant-Specific Features</div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={flags.discounts || false}
+              onChange={(e) => setTenantFeatureFlag(tenant.id, 'discounts', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600"
+            />
+            <span className="text-xs text-gray-600">Discounts</span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={flags.visibility || false}
+              onChange={(e) => setTenantFeatureFlag(tenant.id, 'visibility', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600"
+            />
+            <span className="text-xs text-gray-600">Visibility</span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={flags.order || false}
+              onChange={(e) => setTenantFeatureFlag(tenant.id, 'order', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600"
+            />
+            <span className="text-xs text-gray-600">Order</span>
+          </label>
+        </div>
+      </div>
+      
+      {!hasAnyFeature && (
+        <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded border border-gray-200">
+          Enable features above to customize this tenant's catalog settings.
+        </div>
+      )}
+      
+      {flags.discounts && (
+        <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
+      )}
+      
+      {flags.visibility && (
+        <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
+      )}
+      
+      {flags.order && (
+        <TenantStoreOrderSection tenant={tenant} activeId={activeId} updateTenantStoreOrder={updateTenantStoreOrder} tenantStoreOrder={tenantStoreOrder} />
+      )}
+    </div>
+  );
+}
+
 function TenantStoreOrderSection({ tenant, activeId, updateTenantStoreOrder, tenantStoreOrder }: { tenant: Tenant; activeId: string; updateTenantStoreOrder: (tenantId: string, storeOrder: string[]) => void; tenantStoreOrder: Record<string, string[]> }) {
   const { getEffectiveCatalogForTenant } = useAdminData();
   const [expanded, setExpanded] = useState(false);
