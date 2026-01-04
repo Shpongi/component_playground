@@ -23,24 +23,29 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    // Mark as mounted to prevent hydration mismatch
+    setMounted(true);
     // Check if user is authenticated on mount
-    const authStatus = sessionStorage.getItem("admin_authenticated");
-    if (authStatus === "true") {
-      setIsAuthenticated(true);
+    if (typeof window !== 'undefined') {
+      const authStatus = sessionStorage.getItem("admin_authenticated");
+      if (authStatus === "true") {
+        setIsAuthenticated(true);
+      }
     }
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    // Redirect to login if not authenticated and not on login page
-    if (!isLoading && !isAuthenticated && pathname !== "/admin/login") {
+    // Only redirect after component is mounted to prevent hydration issues
+    if (mounted && !isLoading && !isAuthenticated && pathname !== "/admin/login") {
       router.push("/admin/login");
     }
-  }, [isAuthenticated, isLoading, pathname, router]);
+  }, [isAuthenticated, isLoading, pathname, router, mounted]);
 
   const login = async (password: string): Promise<boolean> => {
     try {

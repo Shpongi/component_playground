@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
 import type { Store } from "../_components/AdminDataProvider";
 
@@ -17,6 +17,7 @@ export default function TenantsPage() {
     getMasterCombo,
   } = useAdminData();
   const [previewTenantId, setPreviewTenantId] = useState<string | null>(null);
+  const [previewCurrency, setPreviewCurrency] = useState<"USD" | "CAD" | "GBP" | null>(null);
   const catalogsById = Object.fromEntries(catalogs.map((c) => [c.id, c]));
   
   // Find base catalogs (Default USD, Default CAD, and Default GBP)
@@ -26,13 +27,36 @@ export default function TenantsPage() {
 
   // Get stores and discounts for preview tenant
   const previewTenant = previewTenantId ? tenants.find(t => t.id === previewTenantId) : null;
-  const previewCatalogId = previewTenant && activeCatalogByTenant[previewTenant.id]
-    ? activeCatalogByTenant[previewTenant.id]
-    : null;
+  const isGlobalTenant = previewTenant && tenants.findIndex(t => t.id === previewTenant.id) < 3;
+  
+  // Determine which catalog to preview
+  const previewCatalogId = (() => {
+    if (!previewTenant) return null;
+    
+    // For global tenants, use selected currency or default to active catalog
+    if (isGlobalTenant && previewCurrency) {
+      const currencyCatalog = previewCurrency === "USD" ? defaultUSCatalog :
+                             previewCurrency === "CAD" ? defaultCACatalog : defaultGBCatalog;
+      return currencyCatalog?.id || null;
+    }
+    
+    // For regular tenants or if no currency selected, use active catalog
+    return activeCatalogByTenant[previewTenant.id] || null;
+  })();
   const previewCatalog = previewCatalogId ? getEffectiveCatalog(previewCatalogId) : null;
   const previewStores: Store[] = previewCatalog ? previewCatalog.stores : [];
   const previewDiscounts = previewCatalog ? previewCatalog.storeDiscounts : {};
   const previewComboInstances = previewCatalogId ? getComboInstancesForCatalog(previewCatalogId) : [];
+  
+  // Reset currency selector when tenant changes
+  useEffect(() => {
+    if (previewTenantId && isGlobalTenant && !previewCurrency) {
+      // Default to USD for global tenants
+      setPreviewCurrency("USD");
+    } else if (previewTenantId && !isGlobalTenant) {
+      setPreviewCurrency(null);
+    }
+  }, [previewTenantId, isGlobalTenant, previewCurrency]);
 
   // Get brand logo URL from official sources or Wikipedia
   const getBrandLogoUrl = (brandName: string): string => {
@@ -293,19 +317,35 @@ export default function TenantsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Store Logos for {previewTenant.name}
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Store Logos for {previewTenant.name}
+                  </h3>
+                  {isGlobalTenant && (
+                    <select
+                      value={previewCurrency || "USD"}
+                      onChange={(e) => setPreviewCurrency(e.target.value as "USD" | "CAD" | "GBP")}
+                      className="h-8 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="CAD">CAD</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500">
                   {previewStores.length} store{previewStores.length !== 1 ? 's' : ''} 
                   {previewComboInstances.length > 0 && (
                     <> and {previewComboInstances.length} combo card{previewComboInstances.length !== 1 ? 's' : ''}</>
-                  )} in active catalog
+                  )} in {previewCurrency ? `${previewCurrency} ` : ''}catalog
                 </p>
               </div>
               <button
-                onClick={() => setPreviewTenantId(null)}
+                onClick={() => {
+                  setPreviewTenantId(null);
+                  setPreviewCurrency(null);
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Close"
               >

@@ -516,6 +516,75 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   // Catalog swap rules
   const [catalogSwapRules, setCatalogSwapRules] = useState<Record<string, string>>({});
 
+  // Tenant to catalog assignments (for multi-currency tenants)
+  // This tracks which catalogs a tenant is assigned to, separate from their active catalog
+  const [tenantCatalogAssignments, setTenantCatalogAssignments] = useState<Record<string, string[]>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-catalog-assignments');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    const assignments: Record<string, string[]> = {};
+    const usBaseCatalog = initialCatalogs.find(c => c.name === "Default USD");
+    const caBaseCatalog = initialCatalogs.find(c => c.name === "Default CAD");
+    const gbBaseCatalog = initialCatalogs.find(c => c.name === "Default GBP");
+    
+    // First 3 tenants are assigned to all three base catalogs
+    tenants.forEach((t, index) => {
+      if (index < 3 && usBaseCatalog && caBaseCatalog && gbBaseCatalog) {
+        assignments[t.id] = [usBaseCatalog.id, caBaseCatalog.id, gbBaseCatalog.id];
+      } else {
+        // Other tenants are assigned to their country's catalog
+        const defaultCatalog = t.country === "US" ? usBaseCatalog : 
+                              t.country === "CA" ? caBaseCatalog : gbBaseCatalog;
+        if (defaultCatalog) {
+          assignments[t.id] = [defaultCatalog.id];
+        }
+      }
+    });
+    return assignments;
+  });
+
+  // Ensure first 3 tenants always have all three base catalogs assigned
+  useEffect(() => {
+    const usBaseCatalog = catalogs.find(c => c.name === "Default USD");
+    const caBaseCatalog = catalogs.find(c => c.name === "Default CAD");
+    const gbBaseCatalog = catalogs.find(c => c.name === "Default GBP");
+    
+    if (usBaseCatalog && caBaseCatalog && gbBaseCatalog) {
+      setTenantCatalogAssignments(prev => {
+        let updated = false;
+        const newAssignments = { ...prev };
+        
+        // Ensure first 3 tenants have all three base catalogs
+        tenants.slice(0, 3).forEach(t => {
+          const current = newAssignments[t.id] || [];
+          const required = [usBaseCatalog.id, caBaseCatalog.id, gbBaseCatalog.id];
+          const hasAll = required.every(id => current.includes(id));
+          
+          if (!hasAll) {
+            newAssignments[t.id] = [...new Set([...current, ...required])];
+            updated = true;
+          }
+        });
+        
+        return updated ? newAssignments : prev;
+      });
+    }
+  }, [catalogs, tenants]);
+
+  // Save tenant catalog assignments to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-catalog-assignments', JSON.stringify(tenantCatalogAssignments));
+    }
+  }, [tenantCatalogAssignments]);
+
   // Default Combos state - initialize empty, load from localStorage in useEffect
   const [masterCombos, setMasterCombos] = useState<MasterCombo[]>([]);
 
@@ -1082,27 +1151,61 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   function getTenantsForCatalog(catalogId: string): Tenant[] {
-    return tenants.filter(tenant => activeCatalogByTenant[tenant.id] === catalogId);
+    // Return tenants that are assigned to this catalog (either active or in assignments)
+    return tenants.filter(tenant => {
+      const assignments = tenantCatalogAssignments[tenant.id] || [];
+      return assignments.includes(catalogId);
+    });
   }
 
   function addTenantToCatalog(catalogId: string, tenantId: string) {
     setActiveCatalogByTenant(prev => ({ ...prev, [tenantId]: catalogId }));
+    // Also add to assignments if not already there
+    setTenantCatalogAssignments(prev => {
+      const current = prev[tenantId] || [];
+      if (!current.includes(catalogId)) {
+        return { ...prev, [tenantId]: [...current, catalogId] };
+      }
+      return prev;
+    });
   }
 
   function removeTenantFromCatalog(catalogId: string, tenantId: string) {
-    // Reset to default catalog for the tenant's country
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
     
-    const defaultCatalog = catalogs.find(c => 
-      !c.isBranch && 
-      ((tenant.country === "US" && c.name === "Default USD") ||
-       (tenant.country === "CA" && c.name === "Default CAD") ||
-       (tenant.country === "GB" && c.name === "Default GBP"))
-    );
+    const tenantIndex = tenants.findIndex(t => t.id === tenantId);
+    const isGlobalTenant = tenantIndex < 3;
     
-    if (defaultCatalog) {
-      setActiveCatalogByTenant(prev => ({ ...prev, [tenantId]: defaultCatalog.id }));
+    // Check if this is a base catalog (Default USD, CAD, or GBP)
+    const isBaseCatalog = catalogId === catalogs.find(c => c.name === "Default USD")?.id ||
+                         catalogId === catalogs.find(c => c.name === "Default CAD")?.id ||
+                         catalogId === catalogs.find(c => c.name === "Default GBP")?.id;
+    
+    // Don't allow removing global tenants from base catalogs
+    if (isGlobalTenant && isBaseCatalog) {
+      return; // Prevent removal
+    }
+    
+    // Remove from assignments
+    setTenantCatalogAssignments(prev => {
+      const current = prev[tenantId] || [];
+      const updated = current.filter(id => id !== catalogId);
+      return { ...prev, [tenantId]: updated };
+    });
+    
+    // If this was the active catalog, reset to default
+    if (activeCatalogByTenant[tenantId] === catalogId) {
+      const defaultCatalog = catalogs.find(c => 
+        !c.isBranch && 
+        ((tenant.country === "US" && c.name === "Default USD") ||
+         (tenant.country === "CA" && c.name === "Default CAD") ||
+         (tenant.country === "GB" && c.name === "Default GBP"))
+      );
+      
+      if (defaultCatalog) {
+        setActiveCatalogByTenant(prev => ({ ...prev, [tenantId]: defaultCatalog.id }));
+      }
     }
   }
 
