@@ -104,55 +104,6 @@ function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility
   );
 }
 
-function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility, tenantHiddenStores }: { tenant: Tenant; stores: Store[]; setTenantStoreVisibility: (tenantId: string, storeName: string, hidden: boolean) => void; tenantHiddenStores: Record<string, Set<string>> }) {
-  const hiddenStores = tenantHiddenStores[tenant.id] || new Set<string>();
-  const [expanded, setExpanded] = useState(false);
-  
-  const tenantStores = stores.filter(s => s.country === tenant.country);
-  const hasHiddenStores = hiddenStores.size > 0;
-  
-  return (
-    <div className="mt-2 pt-2 border-t border-gray-100">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="text-xs font-medium text-gray-700 hover:text-gray-900 flex items-center gap-1"
-      >
-        <span>Store Visibility</span>
-        {hasHiddenStores && <span className="px-1.5 py-0.5 bg-red-100 text-red-800 rounded text-[10px]">{hiddenStores.size} hidden</span>}
-        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="mt-2 space-y-2">
-          <div className="text-[10px] text-gray-500 mb-2">
-            Hide stores that should not be available to this tenant. Hidden stores will not appear in the catalog for this tenant.
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-            {tenantStores.map(store => {
-              const isHidden = hiddenStores.has(store.name);
-              return (
-                <label key={store.name} className="flex items-center gap-2 p-2 rounded border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isHidden}
-                    onChange={(e) => setTenantStoreVisibility(tenant.id, store.name, e.target.checked)}
-                    className="rounded border-gray-300 text-red-600"
-                  />
-                  <span className={`text-xs flex-1 ${isHidden ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                    {store.name}
-                  </span>
-                  {isHidden && <span className="text-[10px] text-red-600 font-medium">Hidden</span>}
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function TenantsPage() {
   const { 
     tenants, 
