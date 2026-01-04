@@ -410,6 +410,8 @@ export default function TenantsPage() {
                 </div>
                 {/* Tenant-specific discounts section */}
                 <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
+                {/* Tenant-specific store visibility section */}
+                <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
               </li>
             );
           })}

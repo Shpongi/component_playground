@@ -627,19 +627,23 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize store visibility: Hide Amazon for NG Tenant1, show for HappyTenant1
   useEffect(() => {
+    if (tenants.length === 0) return;
+    
     const ngTenant1 = tenants.find(t => t.name === "NG Tenant1");
     if (ngTenant1) {
       setTenantHiddenStores(prev => {
-        const current = prev[ngTenant1.id] || new Set<string>();
-        if (!current.has("Amazon")) {
+        const current = prev[ngTenant1.id];
+        // Only set if not already set (to avoid overwriting user changes)
+        if (!current || !current.has("Amazon")) {
           const updated = { ...prev };
-          updated[ngTenant1.id] = new Set([...current, "Amazon"]);
+          const newSet = current ? new Set([...current, "Amazon"]) : new Set(["Amazon"]);
+          updated[ngTenant1.id] = newSet;
           return updated;
         }
         return prev;
       });
     }
-  }, [tenants]);
+  }, [tenants.length]); // Only run when tenants are loaded
 
   // Save tenant store discounts to localStorage whenever it changes
   useEffect(() => {
