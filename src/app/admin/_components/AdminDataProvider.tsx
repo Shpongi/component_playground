@@ -605,45 +605,114 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return {};
   });
 
-  // Initialize Nike 5% discount for HappyTenant1 if not already set
+  // Create branch catalogs for tenants that need customization
+  // This is better practice than tenant-specific overrides - each tenant gets their own branch catalog
   useEffect(() => {
+    if (tenants.length === 0 || catalogs.length === 0) return;
+    
+    const defaultUSCatalog = catalogs.find(c => c.name === "Default USD" && !c.isBranch);
+    if (!defaultUSCatalog) return;
+    
+    // Create branch catalog for HappyTenant1 with Nike 5% discount
     const happyTenant1 = tenants.find(t => t.name === "HappyTenant1");
     if (happyTenant1) {
-      setTenantStoreDiscounts(prev => {
-        const current = prev[happyTenant1.id] || {};
-        if (!current["Nike"]) {
-          return {
-            ...prev,
-            [happyTenant1.id]: {
-              ...current,
-              "Nike": 5
-            }
-          };
-        }
-        return prev;
-      });
+      const existingBranch = catalogs.find(c => 
+        c.isBranch && 
+        c.parentId === defaultUSCatalog.id && 
+        c.name === "HappyTenant1 Branch"
+      );
+      
+      if (!existingBranch) {
+        const branchId = `us-branch-happytenant1-${Date.now()}`;
+        const newBranch: Catalog = {
+          id: branchId,
+          name: "HappyTenant1 Branch",
+          country: defaultUSCatalog.country,
+          currency: defaultUSCatalog.currency,
+          stores: [],
+          storeDiscounts: {},
+          storeCSS: {},
+          storeFees: {},
+          isBranch: true,
+          parentId: defaultUSCatalog.id,
+          branchChanges: {
+            addedStores: [],
+            removedStores: [],
+            discountOverrides: { "Nike": 5 }, // 5% discount for Nike
+            cssOverrides: {},
+            feeOverrides: {}
+          }
+        };
+        setCatalogs(prev => [...prev, newBranch]);
+        // Assign this branch to HappyTenant1
+        setActiveCatalogByTenant(prev => {
+          // Only set if not already assigned to a custom catalog
+          if (!prev[happyTenant1.id] || prev[happyTenant1.id] === defaultUSCatalog.id) {
+            return { ...prev, [happyTenant1.id]: branchId };
+          }
+          return prev;
+        });
+        // Also add to assignments
+        setTenantCatalogAssignments(prev => {
+          const current = prev[happyTenant1.id] || [];
+          if (!current.includes(branchId)) {
+            return { ...prev, [happyTenant1.id]: [...current, branchId] };
+          }
+          return prev;
+        });
+      }
     }
-  }, [tenants]);
-
-  // Initialize store visibility: Hide Amazon for NG Tenant1, show for HappyTenant1
-  useEffect(() => {
-    if (tenants.length === 0) return;
     
+    // Create branch catalog for NG Tenant1 without Amazon
     const ngTenant1 = tenants.find(t => t.name === "NG Tenant1");
     if (ngTenant1) {
-      setTenantHiddenStores(prev => {
-        const current = prev[ngTenant1.id];
-        // Only set if not already set (to avoid overwriting user changes)
-        if (!current || !current.has("Amazon")) {
-          const updated = { ...prev };
-          const newSet = current ? new Set([...current, "Amazon"]) : new Set(["Amazon"]);
-          updated[ngTenant1.id] = newSet;
-          return updated;
-        }
-        return prev;
-      });
+      const existingBranch = catalogs.find(c => 
+        c.isBranch && 
+        c.parentId === defaultUSCatalog.id && 
+        c.name === "NG Tenant1 Branch"
+      );
+      
+      if (!existingBranch) {
+        const branchId = `us-branch-ngtenant1-${Date.now()}`;
+        const newBranch: Catalog = {
+          id: branchId,
+          name: "NG Tenant1 Branch",
+          country: defaultUSCatalog.country,
+          currency: defaultUSCatalog.currency,
+          stores: [],
+          storeDiscounts: {},
+          storeCSS: {},
+          storeFees: {},
+          isBranch: true,
+          parentId: defaultUSCatalog.id,
+          branchChanges: {
+            addedStores: [],
+            removedStores: ["Amazon"], // Remove Amazon
+            discountOverrides: {},
+            cssOverrides: {},
+            feeOverrides: {}
+          }
+        };
+        setCatalogs(prev => [...prev, newBranch]);
+        // Assign this branch to NG Tenant1
+        setActiveCatalogByTenant(prev => {
+          // Only set if not already assigned to a custom catalog
+          if (!prev[ngTenant1.id] || prev[ngTenant1.id] === defaultUSCatalog.id) {
+            return { ...prev, [ngTenant1.id]: branchId };
+          }
+          return prev;
+        });
+        // Also add to assignments
+        setTenantCatalogAssignments(prev => {
+          const current = prev[ngTenant1.id] || [];
+          if (!current.includes(branchId)) {
+            return { ...prev, [ngTenant1.id]: [...current, branchId] };
+          }
+          return prev;
+        });
+      }
     }
-  }, [tenants.length]); // Only run when tenants are loaded
+  }, [tenants.length, catalogs.length]); // Only run when tenants and catalogs are loaded
 
   // Save tenant store discounts to localStorage whenever it changes
   useEffect(() => {
