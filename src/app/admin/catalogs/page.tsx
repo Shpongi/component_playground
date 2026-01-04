@@ -24,7 +24,6 @@ export default function CatalogsPage() {
     setStoreFee, 
     setCatalogFee, 
     moveStoreInCatalog, 
-    createBranch, 
     deleteBranch, 
     getEffectiveCatalog, 
     getTenantsForCatalog, 
@@ -33,8 +32,6 @@ export default function CatalogsPage() {
     tenants 
   } = useAdminData();
   const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
-  const [newBranchName, setNewBranchName] = useState<string>("");
-  const [creatingBranchFor, setCreatingBranchFor] = useState<string | null>(null);
   const [expandedTenants, setExpandedTenants] = useState<Record<string, boolean>>({});
   const [selectedTenantToAdd, setSelectedTenantToAdd] = useState<Record<string, string>>({});
   const [expandedStores, setExpandedStores] = useState<Record<string, boolean>>({});
@@ -94,13 +91,6 @@ export default function CatalogsPage() {
     return map;
   }, [catalogs, getEffectiveCatalog]);
 
-  const handleCreateBranch = (parentId: string) => {
-    if (newBranchName.trim()) {
-      createBranch(parentId, newBranchName.trim());
-      setNewBranchName("");
-      setCreatingBranchFor(null);
-    }
-  };
 
   const toggleBranchExpansion = (catalogId: string) => {
     setExpandedBranches(prev => ({
@@ -174,7 +164,7 @@ export default function CatalogsPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Catalogs</h1>
             <p className="text-sm text-gray-600">
-              Manage catalog branches and store assignments. Create branches from base catalogs.
+              Manage catalog branches and store assignments.
             </p>
           </div>
           <div className="text-sm text-gray-500">
@@ -237,12 +227,6 @@ export default function CatalogsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCreatingBranchFor(baseCatalog.id)}
-                      className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded hover:bg-green-200"
-                    >
-                      + Create Branch
-                    </button>
                     <button
                       onClick={() => toggleTenantExpansion(baseCatalog.id)}
                       className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded hover:bg-purple-200"
@@ -315,37 +299,6 @@ export default function CatalogsPage() {
                       </div>
                     )}
 
-                    {/* Branch Creation Form */}
-                    {creatingBranchFor === baseCatalog.id && (
-                  <div className="mt-3 p-3 bg-gray-50 rounded border">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Enter branch name..."
-                        value={newBranchName}
-                        onChange={(e) => setNewBranchName(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-200 rounded text-sm"
-                        onKeyPress={(e) => e.key === 'Enter' && handleCreateBranch(baseCatalog.id)}
-                      />
-                      <button
-                        onClick={() => handleCreateBranch(baseCatalog.id)}
-                        className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                      >
-                        Create
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCreatingBranchFor(null);
-                          setNewBranchName("");
-                        }}
-                        className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
                 {/* Tenant Management Section */}
                 {expandedTenants[baseCatalog.id] && (
                   <div className="mt-3 p-3 bg-purple-50 rounded border">
