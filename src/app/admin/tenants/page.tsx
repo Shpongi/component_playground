@@ -346,7 +346,7 @@ export default function TenantsPage() {
       </header>
 
       <div className="card">
-        <ul className="list">
+        <ul className="list space-y-3">
           {tenants.map((tenant, index) => {
             // First 3 tenants (HappyTenant1, NG Tenant1, Global Tropper) are global and can access all currencies
             const isGlobalTenant = index < 3;
