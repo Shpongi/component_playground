@@ -442,17 +442,6 @@ export default function TenantsPage() {
                     >
                       Preview
                     </button>
-                    <select
-                      className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs"
-                      value={activeId}
-                      onChange={(e) => setActiveCatalogForTenant(tenant.id, e.target.value)}
-                    >
-                      {available.map((c) => (
-                        <option key={`${tenant.id}-${c.id}`} value={c.id}>
-                          {c.name} {c.isBranch ? '(Branch)' : '(Base)'}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
                 {/* Tenant-specific discounts section - only show if not using a branch catalog */}
