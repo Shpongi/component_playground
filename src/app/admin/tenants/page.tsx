@@ -408,10 +408,55 @@ export default function TenantsPage() {
                     </select>
                   </div>
                 </div>
-                {/* Tenant-specific discounts section */}
-                <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
-                {/* Tenant-specific store visibility section */}
-                <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
+                {/* Tenant-specific discounts section - only show if not using a branch catalog */}
+                {!active?.isBranch && (
+                  <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
+                )}
+                {/* Tenant-specific store visibility section - only show if not using a branch catalog */}
+                {!active?.isBranch ? (
+                  <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
+                ) : (
+                  <div className="expandable-section">
+                    <div className="text-xs text-gray-600 p-3 bg-blue-50 border border-blue-200 rounded">
+                      <p className="font-medium text-blue-900 mb-1">Using Branch Catalog</p>
+                      <p className="text-blue-700">
+                        This tenant is using a branch catalog ({active.name}). To modify stores, discounts, or visibility, 
+                        please edit the branch catalog in the <a href="/admin/catalogs" className="underline font-medium">Catalogs</a> page.
+                      </p>
+                      {(() => {
+                        const effectiveCatalog = getEffectiveCatalog(activeId);
+                        const baseCatalog = catalogs.find(c => c.id === active.parentId);
+                        if (baseCatalog) {
+                          const baseStores = getEffectiveCatalog(baseCatalog.id).stores.map(s => s.name);
+                          const branchStores = effectiveCatalog.stores.map(s => s.name);
+                          const removedStores = baseStores.filter(name => !branchStores.includes(name));
+                          const addedStores = branchStores.filter(name => !baseStores.includes(name));
+                          
+                          return (
+                            <div className="mt-2 space-y-1">
+                              {removedStores.length > 0 && (
+                                <div className="text-xs">
+                                  <span className="font-medium text-red-700">Removed stores:</span> {removedStores.join(", ")}
+                                </div>
+                              )}
+                              {addedStores.length > 0 && (
+                                <div className="text-xs">
+                                  <span className="font-medium text-green-700">Added stores:</span> {addedStores.join(", ")}
+                                </div>
+                              )}
+                              {Object.keys(active.branchChanges.discountOverrides || {}).length > 0 && (
+                                <div className="text-xs">
+                                  <span className="font-medium text-blue-700">Discount overrides:</span> {Object.entries(active.branchChanges.discountOverrides || {}).map(([store, discount]) => `${store} (${discount}%)`).join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+                )}
               </li>
             );
           })}
