@@ -2,7 +2,58 @@
 
 import { useState, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
-import type { Store } from "../_components/AdminDataProvider";
+import type { Store, Tenant } from "../_components/AdminDataProvider";
+
+function TenantDiscountsSection({ tenant, stores, setTenantStoreDiscount }: { tenant: Tenant; stores: Store[]; setTenantStoreDiscount: (tenantId: string, storeName: string, discount: number) => void }) {
+  const { tenantStoreDiscounts } = useAdminData();
+  const tenantDiscounts = tenantStoreDiscounts?.[tenant.id] || {};
+  const [expanded, setExpanded] = useState(false);
+  
+  const tenantStores = stores.filter(s => s.country === tenant.country);
+  const hasDiscounts = Object.keys(tenantDiscounts).length > 0;
+  
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-100">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs font-medium text-gray-700 hover:text-gray-900 flex items-center gap-1"
+      >
+        <span>Tenant-Specific Store Discounts</span>
+        {hasDiscounts && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px]">{Object.keys(tenantDiscounts).length}</span>}
+        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          <div className="text-[10px] text-gray-500 mb-2">
+            Set discounts that only apply to this tenant. These override catalog-level discounts.
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {tenantStores.map(store => {
+              const discount = tenantDiscounts[store.name] || 0;
+              return (
+                <div key={store.name} className="flex items-center gap-1">
+                  <span className="text-xs text-gray-600 flex-1 truncate">{store.name}:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={discount}
+                    onChange={(e) => setTenantStoreDiscount(tenant.id, store.name, parseInt(e.target.value || '0', 10))}
+                    className="w-16 h-6 text-xs border border-gray-200 rounded px-1"
+                    placeholder="0"
+                  />
+                  <span className="text-xs text-gray-500">%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TenantsPage() {
   const { 
@@ -11,10 +62,13 @@ export default function TenantsPage() {
     setActiveCatalogForTenant, 
     catalogs, 
     getEffectiveCatalog,
+    getEffectiveCatalogForTenant,
     comboInstances,
     getComboInstancesForCatalog,
     getComboInstanceStores,
     getMasterCombo,
+    setTenantStoreDiscount,
+    stores,
   } = useAdminData();
   const [previewTenantId, setPreviewTenantId] = useState<string | null>(null);
   const [previewCurrency, setPreviewCurrency] = useState<"USD" | "CAD" | "GBP" | null>(null);
@@ -43,7 +97,10 @@ export default function TenantsPage() {
     // For regular tenants or if no currency selected, use active catalog
     return activeCatalogByTenant[previewTenant.id] || null;
   })();
-  const previewCatalog = previewCatalogId ? getEffectiveCatalog(previewCatalogId) : null;
+  // Use tenant-specific catalog view to include tenant-specific discounts
+  const previewCatalog = previewCatalogId && previewTenant 
+    ? getEffectiveCatalogForTenant(previewTenant.id, previewCatalogId) 
+    : null;
   const previewStores: Store[] = previewCatalog ? previewCatalog.stores : [];
   const previewDiscounts = previewCatalog ? previewCatalog.storeDiscounts : {};
   const previewComboInstances = previewCatalogId ? getComboInstancesForCatalog(previewCatalogId) : [];
@@ -300,6 +357,8 @@ export default function TenantsPage() {
                     </select>
                   </div>
                 </div>
+                {/* Tenant-specific discounts section */}
+                <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
               </li>
             );
           })}

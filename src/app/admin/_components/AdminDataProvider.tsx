@@ -115,9 +115,12 @@ type AdminDataContextValue = {
   createBranch: (parentId: string, branchName: string) => string;
   deleteBranch: (branchId: string) => void;
   getEffectiveCatalog: (catalogId: string) => Catalog;
+  getEffectiveCatalogForTenant: (tenantId: string, catalogId: string) => Catalog;
   getTenantsForCatalog: (catalogId: string) => Tenant[];
   addTenantToCatalog: (catalogId: string, tenantId: string) => void;
   removeTenantFromCatalog: (catalogId: string, tenantId: string) => void;
+  setTenantStoreDiscount: (tenantId: string, storeName: string, discount: number) => void;
+  tenantStoreDiscounts: Record<string, Record<string, number>>;
   moveStoreInCatalog: (catalogId: string, storeName: string, direction: 'up' | 'down') => void;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
   setCatalogFee: (catalogId: string, fee: Fee | null) => void;
@@ -585,6 +588,48 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tenantCatalogAssignments]);
 
+  // Tenant-specific store discounts (tenantId -> storeName -> discount)
+  const [tenantStoreDiscounts, setTenantStoreDiscounts] = useState<Record<string, Record<string, number>>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-store-discounts');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Initialize Nike 5% discount for HappyTenant1 if not already set
+  useEffect(() => {
+    const happyTenant1 = tenants.find(t => t.name === "HappyTenant1");
+    if (happyTenant1) {
+      setTenantStoreDiscounts(prev => {
+        const current = prev[happyTenant1.id] || {};
+        if (!current["Nike"]) {
+          return {
+            ...prev,
+            [happyTenant1.id]: {
+              ...current,
+              "Nike": 5
+            }
+          };
+        }
+        return prev;
+      });
+    }
+  }, [tenants]);
+
+  // Save tenant store discounts to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-store-discounts', JSON.stringify(tenantStoreDiscounts));
+    }
+  }, [tenantStoreDiscounts]);
+
   // Default Combos state - initialize empty, load from localStorage in useEffect
   const [masterCombos, setMasterCombos] = useState<MasterCombo[]>([]);
 
@@ -989,6 +1034,27 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  function getEffectiveCatalogForTenant(tenantId: string, catalogId: string): Catalog {
+    const baseCatalog = getEffectiveCatalog(catalogId);
+    const tenantDiscounts = tenantStoreDiscounts[tenantId] || {};
+    
+    // Apply tenant-specific discounts on top of catalog discounts
+    const effectiveDiscounts = { ...baseCatalog.storeDiscounts };
+    Object.entries(tenantDiscounts).forEach(([storeName, discount]) => {
+      if (discount === 0) {
+        // If discount is 0, remove it (no override)
+        delete effectiveDiscounts[storeName];
+      } else {
+        effectiveDiscounts[storeName] = discount;
+      }
+    });
+    
+    return {
+      ...baseCatalog,
+      storeDiscounts: effectiveDiscounts,
+    };
+  }
+
   function getEffectiveCatalog(catalogId: string): Catalog {
     const catalog = catalogs.find(c => c.id === catalogId);
     if (!catalog) throw new Error(`Catalog ${catalogId} not found`);
@@ -1167,6 +1233,30 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         return { ...prev, [tenantId]: [...current, catalogId] };
       }
       return prev;
+    });
+  }
+
+  function setTenantStoreDiscount(tenantId: string, storeName: string, discount: number) {
+    setTenantStoreDiscounts(prev => {
+      const tenantDiscounts = prev[tenantId] || {};
+      const clamped = Math.max(0, Math.min(100, discount));
+      const updated = { ...prev };
+      
+      if (clamped === 0) {
+        // Remove discount if set to 0
+        const newTenantDiscounts = { ...tenantDiscounts };
+        delete newTenantDiscounts[storeName];
+        if (Object.keys(newTenantDiscounts).length === 0) {
+          // Remove tenant entry if no discounts left
+          delete updated[tenantId];
+        } else {
+          updated[tenantId] = newTenantDiscounts;
+        }
+      } else {
+        updated[tenantId] = { ...tenantDiscounts, [storeName]: clamped };
+      }
+      
+      return updated;
     });
   }
 
@@ -1513,9 +1603,12 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     createBranch,
     deleteBranch,
     getEffectiveCatalog,
+    getEffectiveCatalogForTenant,
     getTenantsForCatalog,
     addTenantToCatalog,
     removeTenantFromCatalog,
+    setTenantStoreDiscount,
+    tenantStoreDiscounts,
     moveStoreInCatalog,
     setStoreFee,
     setCatalogFee,
