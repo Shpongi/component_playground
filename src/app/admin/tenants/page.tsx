@@ -13,23 +13,23 @@ function TenantDiscountsSection({ tenant, stores, setTenantStoreDiscount }: { te
   const hasDiscounts = Object.keys(tenantDiscounts).length > 0;
   
   return (
-    <div className="mt-2 pt-2 border-t border-gray-100">
+    <div className="expandable-section">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="text-xs font-medium text-gray-700 hover:text-gray-900 flex items-center gap-1"
+        className="expandable-header"
       >
         <span>Tenant-Specific Store Discounts</span>
-        {hasDiscounts && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px]">{Object.keys(tenantDiscounts).length}</span>}
+        {hasDiscounts && <span className="badge badge-primary text-[10px]">{Object.keys(tenantDiscounts).length}</span>}
         <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       {expanded && (
-        <div className="mt-2 space-y-2">
+        <div className="expandable-content">
           <div className="text-[10px] text-gray-500 mb-2">
             Set discounts that only apply to this tenant. These override catalog-level discounts.
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid-responsive">
             {tenantStores.map(store => {
               const discount = tenantDiscounts[store.name] || 0;
               return (
@@ -41,7 +41,7 @@ function TenantDiscountsSection({ tenant, stores, setTenantStoreDiscount }: { te
                     max={100}
                     value={discount}
                     onChange={(e) => setTenantStoreDiscount(tenant.id, store.name, parseInt(e.target.value || '0', 10))}
-                    className="w-16 h-6 text-xs border border-gray-200 rounded px-1"
+                    className="input-sm w-16 h-6"
                     placeholder="0"
                   />
                   <span className="text-xs text-gray-500">%</span>
@@ -63,23 +63,23 @@ function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility
   const hasHiddenStores = hiddenStores.size > 0;
   
   return (
-    <div className="mt-2 pt-2 border-t border-gray-100">
+    <div className="expandable-section">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="text-xs font-medium text-gray-700 hover:text-gray-900 flex items-center gap-1"
+        className="expandable-header"
       >
         <span>Store Visibility</span>
-        {hasHiddenStores && <span className="px-1.5 py-0.5 bg-red-100 text-red-800 rounded text-[10px]">{hiddenStores.size} hidden</span>}
+        {hasHiddenStores && <span className="badge badge-danger text-[10px]">{hiddenStores.size} hidden</span>}
         <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       {expanded && (
-        <div className="mt-2 space-y-2">
+        <div className="expandable-content">
           <div className="text-[10px] text-gray-500 mb-2">
             Hide stores that should not be available to this tenant. Hidden stores will not appear in the catalog for this tenant.
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid-responsive">
             {tenantStores.map(store => {
               const isHidden = hiddenStores.has(store.name);
               return (
@@ -93,7 +93,7 @@ function TenantStoreVisibilitySection({ tenant, stores, setTenantStoreVisibility
                   <span className={`text-xs flex-1 ${isHidden ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
                     {store.name}
                   </span>
-                  {isHidden && <span className="text-[10px] text-red-600 font-medium">Hidden</span>}
+                  {isHidden && <span className="badge badge-danger text-[10px]">Hidden</span>}
                 </label>
               );
             })}
@@ -335,18 +335,18 @@ export default function TenantsPage() {
   };
 
   return (
-    <section className="space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Tenants</h1>
-        <p className="text-sm text-gray-600">
+    <section className="section">
+      <header className="section-header">
+        <h1 className="section-title">Tenants</h1>
+        <p className="section-description">
           Active catalog per tenant. 
           <span className="font-medium text-blue-600">Default USD</span>, <span className="font-medium text-blue-600">Default CAD</span>, and <span className="font-medium text-blue-600">Default GBP</span> are the base catalogs.
           Tenants can use branches for custom configurations.
         </p>
       </header>
 
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        <ul className="divide-y divide-gray-200">
+      <div className="card">
+        <ul className="list">
           {tenants.map((tenant, index) => {
             // First 3 tenants (HappyTenant1, NG Tenant1, Global Tropper) are global and can access all currencies
             const isGlobalTenant = index < 3;
@@ -360,17 +360,17 @@ export default function TenantsPage() {
             const isUsingDefault = activeId === defaultCatalog?.id;
             
             return (
-              <li key={tenant.id} className="px-4 py-3 text-sm">
+              <li key={tenant.id} className="list-item">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <div className="font-medium">{tenant.name}</div>
                       {isUsingDefault ? (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                        <span className="badge badge-success">
                           Default
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                        <span className="badge badge-warning">
                           Custom
                         </span>
                       )}
@@ -391,7 +391,7 @@ export default function TenantsPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setPreviewTenantId(tenant.id)}
-                      className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 font-medium"
+                      className="btn btn-success btn-xs"
                     >
                       Preview
                     </button>
