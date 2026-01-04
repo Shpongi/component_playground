@@ -637,10 +637,16 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     const gbBaseCatalog = initialCatalogs.find(c => c.name === "Default GBP");
     
     const mapping: Record<string, string> = {};
-    tenants.forEach((t) => {
-      const defaultCatalog = t.country === "US" ? usBaseCatalog : 
-                            t.country === "CA" ? caBaseCatalog : gbBaseCatalog;
-      mapping[t.id] = defaultCatalog?.id || "";
+    tenants.forEach((t, index) => {
+      // First 3 tenants (HappyTenant1, NG Tenant1, Global Tropper) are global - default to USD
+      // All other tenants get catalog based on their country
+      if (index < 3) {
+        mapping[t.id] = usBaseCatalog?.id || "";
+      } else {
+        const defaultCatalog = t.country === "US" ? usBaseCatalog : 
+                              t.country === "CA" ? caBaseCatalog : gbBaseCatalog;
+        mapping[t.id] = defaultCatalog?.id || "";
+      }
     });
     return mapping;
   });

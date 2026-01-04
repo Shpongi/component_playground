@@ -215,8 +215,12 @@ export default function TenantsPage() {
 
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
         <ul className="divide-y divide-gray-200">
-          {tenants.map((tenant) => {
-            const available = catalogs.filter((c) => c.country === tenant.country);
+          {tenants.map((tenant, index) => {
+            // First 3 tenants (HappyTenant1, NG Tenant1, Global Tropper) are global and can access all currencies
+            const isGlobalTenant = index < 3;
+            const available = isGlobalTenant 
+              ? catalogs // All catalogs for global tenants
+              : catalogs.filter((c) => c.country === tenant.country); // Country-specific for others
             const activeId = activeCatalogByTenant[tenant.id];
             const active = catalogsById[activeId];
             const defaultCatalog = tenant.country === "US" ? defaultUSCatalog : 
