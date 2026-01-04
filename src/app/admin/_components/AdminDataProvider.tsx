@@ -609,48 +609,62 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return {};
   });
 
-  // Assign default USD catalog to HappyTenant1 and NG Tenant1
+  // Assign default USD catalog to HappyTenant1 and NG Tenant1 (not branch catalogs)
   useEffect(() => {
     if (tenants.length === 0 || catalogs.length === 0) return;
     
     const defaultUSCatalog = catalogs.find(c => c.name === "Default USD" && !c.isBranch);
     if (!defaultUSCatalog) return;
     
-    // Assign default USD catalog to HappyTenant1
+    // Assign default USD catalog to HappyTenant1 (ensure not using branch catalog)
     const happyTenant1 = tenants.find(t => t.name === "HappyTenant1");
     if (happyTenant1) {
       setActiveCatalogByTenant(prev => {
-        // Only set if not already assigned
-        if (!prev[happyTenant1.id]) {
+        const currentCatalogId = prev[happyTenant1.id];
+        const currentCatalog = catalogs.find(c => c.id === currentCatalogId);
+        // If currently using a branch catalog, switch to default USD
+        if (currentCatalog?.isBranch || !currentCatalogId) {
           return { ...prev, [happyTenant1.id]: defaultUSCatalog.id };
         }
         return prev;
       });
-      // Also add to assignments
+      // Also ensure in assignments
       setTenantCatalogAssignments(prev => {
         const current = prev[happyTenant1.id] || [];
-        if (!current.includes(defaultUSCatalog.id)) {
-          return { ...prev, [happyTenant1.id]: [...current, defaultUSCatalog.id] };
+        // Remove any branch catalog assignments, keep only base catalogs
+        const baseCatalogs = current.filter(catalogId => {
+          const catalog = catalogs.find(c => c.id === catalogId);
+          return catalog && !catalog.isBranch;
+        });
+        if (!baseCatalogs.includes(defaultUSCatalog.id)) {
+          return { ...prev, [happyTenant1.id]: [...baseCatalogs, defaultUSCatalog.id] };
         }
         return prev;
       });
     }
     
-    // Assign default USD catalog to NG Tenant1
+    // Assign default USD catalog to NG Tenant1 (ensure not using branch catalog)
     const ngTenant1 = tenants.find(t => t.name === "NG Tenant1");
     if (ngTenant1) {
       setActiveCatalogByTenant(prev => {
-        // Only set if not already assigned
-        if (!prev[ngTenant1.id]) {
+        const currentCatalogId = prev[ngTenant1.id];
+        const currentCatalog = catalogs.find(c => c.id === currentCatalogId);
+        // If currently using a branch catalog, switch to default USD
+        if (currentCatalog?.isBranch || !currentCatalogId) {
           return { ...prev, [ngTenant1.id]: defaultUSCatalog.id };
         }
         return prev;
       });
-      // Also add to assignments
+      // Also ensure in assignments
       setTenantCatalogAssignments(prev => {
         const current = prev[ngTenant1.id] || [];
-        if (!current.includes(defaultUSCatalog.id)) {
-          return { ...prev, [ngTenant1.id]: [...current, defaultUSCatalog.id] };
+        // Remove any branch catalog assignments, keep only base catalogs
+        const baseCatalogs = current.filter(catalogId => {
+          const catalog = catalogs.find(c => c.id === catalogId);
+          return catalog && !catalog.isBranch;
+        });
+        if (!baseCatalogs.includes(defaultUSCatalog.id)) {
+          return { ...prev, [ngTenant1.id]: [...baseCatalogs, defaultUSCatalog.id] };
         }
         return prev;
       });
