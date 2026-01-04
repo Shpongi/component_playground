@@ -125,6 +125,8 @@ type AdminDataContextValue = {
   tenantHiddenStores: Record<string, Set<string>>;
   updateTenantStoreOrder: (tenantId: string, storeOrder: string[]) => void;
   tenantStoreOrder: Record<string, string[]>;
+  tenantFeatureFlags: Record<string, { discounts?: boolean; visibility?: boolean; order?: boolean }>;
+  setTenantFeatureFlag: (tenantId: string, feature: 'discounts' | 'visibility' | 'order', enabled: boolean) => void;
   moveStoreInCatalog: (catalogId: string, storeName: string, direction: 'up' | 'down') => void;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
   setCatalogFee: (catalogId: string, fee: Fee | null) => void;
@@ -778,6 +780,45 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('admin-tenant-store-order', JSON.stringify(tenantStoreOrder));
     }
   }, [tenantStoreOrder]);
+
+  // Tenant feature flags (which features are enabled per tenant)
+  const [tenantFeatureFlags, setTenantFeatureFlags] = useState<Record<string, { discounts?: boolean; visibility?: boolean; order?: boolean }>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-feature-flags');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save tenant feature flags to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-feature-flags', JSON.stringify(tenantFeatureFlags));
+    }
+  }, [tenantFeatureFlags]);
+
+  function setTenantFeatureFlag(tenantId: string, feature: 'discounts' | 'visibility' | 'order', enabled: boolean) {
+    setTenantFeatureFlags(prev => {
+      const current = prev[tenantId] || {};
+      if (!enabled) {
+        const updated = { ...current };
+        delete updated[feature];
+        if (Object.keys(updated).length === 0) {
+          const newFlags = { ...prev };
+          delete newFlags[tenantId];
+          return newFlags;
+        }
+        return { ...prev, [tenantId]: updated };
+      }
+      return { ...prev, [tenantId]: { ...current, [feature]: true } };
+    });
+  }
 
   // Default Combos state - initialize empty, load from localStorage in useEffect
   const [masterCombos, setMasterCombos] = useState<MasterCombo[]>([]);
@@ -1820,6 +1861,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     tenantHiddenStores,
     updateTenantStoreOrder,
     tenantStoreOrder,
+    tenantFeatureFlags,
+    setTenantFeatureFlag,
     moveStoreInCatalog,
     setStoreFee,
     setCatalogFee,

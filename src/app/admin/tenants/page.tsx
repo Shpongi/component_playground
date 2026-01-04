@@ -8,9 +8,18 @@ function TenantDiscountsSection({ tenant, stores, setTenantStoreDiscount }: { te
   const { tenantStoreDiscounts } = useAdminData();
   const tenantDiscounts = tenantStoreDiscounts?.[tenant.id] || {};
   const [expanded, setExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const tenantStores = stores.filter(s => s.country === tenant.country);
   const hasDiscounts = Object.keys(tenantDiscounts).length > 0;
+  
+  // Get stores with discounts
+  const storesWithDiscounts = Object.keys(tenantDiscounts);
+  
+  // Get available stores to add discount (stores that don't have discounts yet)
+  const availableStores = tenantStores
+    .filter(s => !tenantDiscounts[s.name] || tenantDiscounts[s.name] === 0)
+    .filter(s => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
   
   return (
     <div className="expandable-section">
@@ -19,35 +28,81 @@ function TenantDiscountsSection({ tenant, stores, setTenantStoreDiscount }: { te
         className="expandable-header"
       >
         <span>Tenant-Specific Store Discounts</span>
-        {hasDiscounts && <span className="badge badge-primary text-[10px]">{Object.keys(tenantDiscounts).length}</span>}
+        {hasDiscounts && <span className="badge badge-primary text-[10px]">{storesWithDiscounts.length}</span>}
         <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       {expanded && (
         <div className="expandable-content">
-          <div className="text-[10px] text-gray-500 mb-2">
+          <div className="text-[10px] text-gray-500 mb-3">
             Set discounts that only apply to this tenant. These override catalog-level discounts.
           </div>
-          <div className="grid-responsive">
-            {tenantStores.map(store => {
-              const discount = tenantDiscounts[store.name] || 0;
-              return (
-                <div key={store.name} className="flex items-center gap-1">
-                  <span className="text-xs text-gray-600 flex-1 truncate">{store.name}:</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={discount}
-                    onChange={(e) => setTenantStoreDiscount(tenant.id, store.name, parseInt(e.target.value || '0', 10))}
-                    className="input-sm w-16 h-6"
-                    placeholder="0"
-                  />
-                  <span className="text-xs text-gray-500">%</span>
-                </div>
-              );
-            })}
+          
+          {/* Stores with Discounts */}
+          {storesWithDiscounts.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-medium text-gray-700 mb-2">Stores with Discounts ({storesWithDiscounts.length})</div>
+              <div className="space-y-2">
+                {storesWithDiscounts.map(storeName => {
+                  const discount = tenantDiscounts[storeName];
+                  return (
+                    <div key={storeName} className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+                      <span className="text-xs text-gray-700 flex-1">{storeName}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={discount}
+                        onChange={(e) => setTenantStoreDiscount(tenant.id, storeName, parseInt(e.target.value || '0', 10))}
+                        className="input-sm w-20 h-7"
+                        placeholder="0"
+                      />
+                      <span className="text-xs text-gray-500">%</span>
+                      <button
+                        onClick={() => setTenantStoreDiscount(tenant.id, storeName, 0)}
+                        className="text-red-600 hover:text-red-800 text-xs font-medium"
+                        title="Remove discount"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Search Bar to Add Stores */}
+          <div>
+            <div className="text-xs font-medium text-gray-700 mb-2">Add Discount to Store</div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search stores to add discount..."
+              className="input input-sm mb-2"
+            />
+            {searchQuery && availableStores.length > 0 && (
+              <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white">
+                {availableStores.map(store => (
+                  <button
+                    key={store.name}
+                    onClick={() => {
+                      setTenantStoreDiscount(tenant.id, store.name, 5);
+                      setSearchQuery("");
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center justify-between"
+                  >
+                    <span className="text-gray-700">{store.name}</span>
+                    <span className="text-gray-400 text-[10px]">Click to add discount</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchQuery && availableStores.length === 0 && (
+              <div className="text-xs text-gray-500 p-2">No stores found matching "{searchQuery}"</div>
+            )}
           </div>
         </div>
       )}
@@ -254,6 +309,8 @@ export default function TenantsPage() {
     tenantHiddenStores,
     updateTenantStoreOrder,
     tenantStoreOrder,
+    tenantFeatureFlags,
+    setTenantFeatureFlag,
     stores,
   } = useAdminData();
   const [previewTenantId, setPreviewTenantId] = useState<string | null>(null);
@@ -532,15 +589,20 @@ export default function TenantsPage() {
                     </button>
                   </div>
                 </div>
-                {/* Tenant-specific discounts section - only show if not using a branch catalog */}
+                {/* Tenant-specific features - only show if not using a branch catalog */}
                 {!active?.isBranch && (
-                  <>
-                    <TenantDiscountsSection tenant={tenant} stores={stores} setTenantStoreDiscount={setTenantStoreDiscount} />
-                    {/* Tenant-specific store visibility section */}
-                    <TenantStoreVisibilitySection tenant={tenant} stores={stores} setTenantStoreVisibility={setTenantStoreVisibility} tenantHiddenStores={tenantHiddenStores} />
-                    {/* Tenant-specific store order section */}
-                    <TenantStoreOrderSection tenant={tenant} activeId={activeId} updateTenantStoreOrder={updateTenantStoreOrder} tenantStoreOrder={tenantStoreOrder} />
-                  </>
+                  <TenantFeaturesSection 
+                    tenant={tenant} 
+                    stores={stores}
+                    activeId={activeId}
+                    tenantFeatureFlags={tenantFeatureFlags}
+                    setTenantFeatureFlag={setTenantFeatureFlag}
+                    setTenantStoreDiscount={setTenantStoreDiscount}
+                    setTenantStoreVisibility={setTenantStoreVisibility}
+                    tenantHiddenStores={tenantHiddenStores}
+                    updateTenantStoreOrder={updateTenantStoreOrder}
+                    tenantStoreOrder={tenantStoreOrder}
+                  />
                 )}
                 {/* Branch catalog info */}
                 {active?.isBranch && (
