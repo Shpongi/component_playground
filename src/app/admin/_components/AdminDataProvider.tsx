@@ -344,7 +344,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   const tenants = useMemo<Tenant[]>(() => {
     const companyNames = [
       // US Companies
-      "Acme Corporation", "TechFlow Solutions", "Global Dynamics", "Innovation Labs", "Premier Services",
+      "HappyTenant1", "NG Tenant1", "Global Tropper", "Innovation Labs", "Premier Services",
       "Strategic Partners", "Elite Enterprises", "Advanced Systems", "Prime Technologies", "Excellence Group",
       "Dynamic Solutions", "Progressive Industries", "Superior Services", "Leading Edge Corp", "Peak Performance",
       "Summit Ventures", "Pinnacle Group", "Apex Solutions", "Vertex Technologies", "Zenith Enterprises",
