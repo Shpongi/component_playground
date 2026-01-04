@@ -385,7 +385,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return Array.from({ length: 150 }, (_, index) => ({
       id: `tenant-${index + 1}`,
       name: companyNames[index],
-      country: index % 3 === 0 ? "US" : index % 3 === 1 ? "CA" : "GB",
+      // First 3 tenants are US, then continue with pattern
+      country: index < 3 ? "US" : (index - 3) % 3 === 0 ? "US" : (index - 3) % 3 === 1 ? "CA" : "GB",
     }));
   }, []);
 
