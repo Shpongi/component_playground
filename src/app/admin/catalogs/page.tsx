@@ -18,8 +18,6 @@ export default function CatalogsPage() {
     getComboInstancesForCatalog,
     getComboInstanceStores,
     getMasterCombo,
-    addStoreToCatalog, 
-    addStoresToCatalog, 
     removeStoreFromCatalog, 
     setStoreDiscount, 
     setStoreCSS, 
@@ -40,8 +38,6 @@ export default function CatalogsPage() {
   const [expandedTenants, setExpandedTenants] = useState<Record<string, boolean>>({});
   const [selectedTenantToAdd, setSelectedTenantToAdd] = useState<Record<string, string>>({});
   const [expandedStores, setExpandedStores] = useState<Record<string, boolean>>({});
-  const [selectedStoreToAdd, setSelectedStoreToAdd] = useState<Record<string, string>>({});
-  const [isAddingCombo, setIsAddingCombo] = useState<Record<string, boolean>>({});
   const [storeSettingsOpen, setStoreSettingsOpen] = useState<Record<string, boolean>>({});
   const [expandedCatalogs, setExpandedCatalogs] = useState<Record<string, boolean>>({});
   const [expandedComboInstances, setExpandedComboInstances] = useState<Record<string, boolean>>({});
@@ -142,51 +138,6 @@ export default function CatalogsPage() {
     );
   };
 
-  const getAvailableStoresForCatalog = (catalog: Catalog) => {
-    const effective = getEffectiveCatalog(catalog.id).stores.map(s => s.name);
-    // Only show active stores that aren't already in the catalog
-    return getActiveStores().filter(s => s.country === catalog.country && !effective.includes(s.name));
-  };
-
-  const getAvailableCombosForCatalog = (catalog: Catalog) => {
-    // Filter combos by currency matching the catalog's currency
-    // Also filter out combos that contain inactive stores
-    const activeStoreNames = new Set(getActiveStores().map(s => s.name));
-    return combos.filter(combo => 
-      combo.currency === catalog.currency && 
-      combo.isActive &&
-      // Only include combos where all stores are active
-      combo.storeNames.every(storeName => activeStoreNames.has(storeName)) &&
-      // Check if any stores from the combo are not already in the catalog
-      combo.storeNames.some(storeName => {
-        const effective = getEffectiveCatalog(catalog.id).stores.map(s => s.name);
-        return !effective.includes(storeName);
-      })
-    );
-  };
-
-  const handleAddStoreToCatalog = (catalogId: string) => {
-    const storeName = selectedStoreToAdd[catalogId];
-    if (storeName) {
-      // Check if it's a combo (starts with "combo:")
-      if (storeName.startsWith("combo:")) {
-        const comboId = storeName.replace("combo:", "");
-        const combo = combos.find(c => c.id === comboId);
-        if (combo) {
-          console.log(`Adding combo "${combo.name}" with stores:`, combo.storeNames);
-          // Add all stores from the combo to the catalog in a single operation
-          addStoresToCatalog(catalogId, combo.storeNames);
-        } else {
-          console.error(`Combo with id "${comboId}" not found`);
-        }
-      } else {
-        // Regular store
-        addStoreToCatalog(catalogId, storeName);
-      }
-      setSelectedStoreToAdd(prev => ({ ...prev, [catalogId]: "" }));
-      setIsAddingCombo(prev => ({ ...prev, [catalogId]: false }));
-    }
-  };
 
   const getCurrencySymbol = (currency: string) => {
     if (currency === "USD") return "$";
@@ -678,51 +629,6 @@ export default function CatalogsPage() {
                           </div>
                         </div>
                       </div>
-
-                      {/* Add store */}
-                      <div>
-                        <div className="text-xs font-medium text-gray-700 mb-1">Add Store or Combo (filtered by country/currency)</div>
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={selectedStoreToAdd[baseCatalog.id] || ''}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setSelectedStoreToAdd(prev => ({ ...prev, [baseCatalog.id]: value }));
-                              setIsAddingCombo(prev => ({ ...prev, [baseCatalog.id]: value.startsWith("combo:") }));
-                            }}
-                            className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 bg-white"
-                          >
-                            <option value="">Select a store or combo</option>
-                            <optgroup label="Stores">
-                              {getAvailableStoresForCatalog(baseCatalog).map(s => (
-                                <option key={s.name} value={s.name}>{s.name}</option>
-                              ))}
-                            </optgroup>
-                            {getAvailableCombosForCatalog(baseCatalog).length > 0 && (
-                              <optgroup label="Combos">
-                                {getAvailableCombosForCatalog(baseCatalog).map(combo => (
-                                  <option key={combo.id} value={`combo:${combo.id}`}>
-                                    {combo.name} ({combo.storeNames.length} stores)
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                          </select>
-                          <button
-                            onClick={() => handleAddStoreToCatalog(baseCatalog.id)}
-                            disabled={!selectedStoreToAdd[baseCatalog.id]}
-                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={isAddingCombo[baseCatalog.id] ? "Add all stores from this combo" : "Add store"}
-                          >
-                            {isAddingCombo[baseCatalog.id] ? "Add Combo" : "Add"}
-                          </button>
-                        </div>
-                        {isAddingCombo[baseCatalog.id] && selectedStoreToAdd[baseCatalog.id] && (
-                          <p className="text-[10px] text-gray-500 mt-1">
-                            This will add all stores from the selected combo to the catalog.
-                          </p>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1017,51 +923,6 @@ export default function CatalogsPage() {
                                   })}
                                 </div>
                               </div>
-                            </div>
-
-                            {/* Add store */}
-                            <div>
-                              <div className="text-[11px] text-gray-600 mb-1">Add Store or Combo (filtered by country/currency)</div>
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={selectedStoreToAdd[branch.id] || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    setSelectedStoreToAdd(prev => ({ ...prev, [branch.id]: value }));
-                                    setIsAddingCombo(prev => ({ ...prev, [branch.id]: value.startsWith("combo:") }));
-                                  }}
-                                  className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 bg-white"
-                                >
-                                  <option value="">Select a store or combo</option>
-                                  <optgroup label="Stores">
-                                    {getAvailableStoresForCatalog(branch).map(s => (
-                                      <option key={s.name} value={s.name}>{s.name}</option>
-                                    ))}
-                                  </optgroup>
-                                  {getAvailableCombosForCatalog(branch).length > 0 && (
-                                    <optgroup label="Combos">
-                                      {getAvailableCombosForCatalog(branch).map(combo => (
-                                        <option key={combo.id} value={`combo:${combo.id}`}>
-                                          {combo.name} ({combo.storeNames.length} stores)
-                                        </option>
-                                      ))}
-                                    </optgroup>
-                                  )}
-                                </select>
-                                <button
-                                  onClick={() => handleAddStoreToCatalog(branch.id)}
-                                  disabled={!selectedStoreToAdd[branch.id]}
-                                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title={isAddingCombo[branch.id] ? "Add all stores from this combo" : "Add store"}
-                                >
-                                  {isAddingCombo[branch.id] ? "Add Combo" : "Add"}
-                                </button>
-                              </div>
-                              {isAddingCombo[branch.id] && selectedStoreToAdd[branch.id] && (
-                                <p className="text-[10px] text-gray-500 mt-1">
-                                  This will add all stores from the selected combo to the catalog.
-                                </p>
-                              )}
                             </div>
                           </div>
                             </>
