@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
 import type { Fee, FeeType, Catalog, ComboInstance } from "../_components/AdminDataProvider";
 
@@ -73,6 +73,20 @@ export default function CatalogsPage() {
       ...base,
       branches: branchCatalogs.filter(branch => branch.parentId === base.id)
     }));
+  }, [catalogs]);
+
+  // Initialize expandedCatalogs: USD catalogs open by default, others closed
+  useEffect(() => {
+    const baseCatalogs = catalogs.filter(c => !c.isBranch);
+    const initialExpanded: Record<string, boolean> = {};
+    baseCatalogs.forEach(catalog => {
+      initialExpanded[catalog.id] = catalog.currency === "USD";
+    });
+    setExpandedCatalogs(prev => {
+      // Only set initial state if not already set (preserve user interactions)
+      const hasAnyExpanded = Object.keys(prev).length > 0;
+      return hasAnyExpanded ? prev : initialExpanded;
+    });
   }, [catalogs]);
 
   // Memoize effective catalogs for all catalogs to avoid calling hooks in render
@@ -223,7 +237,7 @@ export default function CatalogsPage() {
         {catalogTree.map((baseCatalog) => {
           const isExpanded = expandedBranches[baseCatalog.id];
           const effectiveCatalog = getEffectiveCatalog(baseCatalog.id);
-          const isCatalogExpanded = expandedCatalogs[baseCatalog.id] !== false; // default to expanded
+          const isCatalogExpanded = expandedCatalogs[baseCatalog.id] === true; // USD expanded by default, others closed
           
           return (
             <div key={baseCatalog.id} className="border border-gray-200 rounded-lg bg-white">
