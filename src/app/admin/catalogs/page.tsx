@@ -508,12 +508,6 @@ export default function CatalogsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleTenantExpansion(baseCatalog.id)}
-                      className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded hover:bg-purple-200"
-                    >
-                      Manage Tenants
-                    </button>
                     <span className="text-sm text-gray-500">
                       {baseCatalog.branches.length} branches
                     </span>
