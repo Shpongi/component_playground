@@ -295,17 +295,6 @@ export default function TenantsPage() {
                     </button>
                   </div>
                 </div>
-                {/* Note about tenant-specific features */}
-                {!active?.isBranch && (
-                  <div className="expandable-section">
-                    <div className="text-xs text-gray-600 p-3 bg-blue-50 border border-blue-200 rounded">
-                      <p className="font-medium text-blue-900 mb-1">Tenant-Specific Features</p>
-                      <p className="text-blue-700">
-                        To configure discounts, visibility, and store order for this tenant, please go to the <a href="/admin/catalogs" className="underline font-medium">Catalogs</a> page and select the catalog this tenant uses.
-                      </p>
-                    </div>
-                  </div>
-                )}
                 {/* Branch catalog info */}
                 {active?.isBranch && (
                   <div className="expandable-section">
