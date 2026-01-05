@@ -51,6 +51,7 @@ export default function TenantsPage() {
     : null;
   const previewStores: Store[] = previewCatalog ? previewCatalog.stores : [];
   const previewDiscounts = previewCatalog ? previewCatalog.storeDiscounts : {};
+  const previewStoreCSS = previewCatalog ? previewCatalog.storeCSS : {};
   const previewComboInstances = previewCatalogId ? getComboInstancesForCatalog(previewCatalogId) : [];
   
   // Reset currency selector when tenant changes
@@ -481,11 +482,21 @@ export default function TenantsPage() {
                             .substring(0, 2)
                             .toUpperCase();
                           const discount = previewDiscounts[store.name] || 0;
+                          const storeCSSString = previewStoreCSS[store.name];
+                          let storeCSS: React.CSSProperties = {};
+                          if (storeCSSString) {
+                            try {
+                              storeCSS = JSON.parse(storeCSSString);
+                            } catch (e) {
+                              // If parsing fails, ignore CSS
+                            }
+                          }
 
                           return (
                             <div
                               key={store.name}
                               className="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white relative"
+                              style={storeCSS}
                             >
                               {discount > 0 && (
                                 <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md z-10">
