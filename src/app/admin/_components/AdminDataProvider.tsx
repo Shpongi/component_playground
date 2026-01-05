@@ -894,15 +894,20 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize default combo cards for each currency catalog
   useEffect(() => {
-    if (catalogs.length === 0 || comboInstances.length > 0) return;
+    if (catalogs.length === 0) return;
     
     const defaultUSCatalog = catalogs.find(c => c.name === "Default USD" && !c.isBranch);
     const defaultCACatalog = catalogs.find(c => c.name === "Default CAD" && !c.isBranch);
     const defaultGBCatalog = catalogs.find(c => c.name === "Default GBP" && !c.isBranch);
     
+    // Check if default combo cards already exist
+    const hasUSDDefault = defaultUSCatalog && comboInstances.some(ci => ci.catalogId === defaultUSCatalog.id && ci.displayName === "Default Combo Card");
+    const hasCADDefault = defaultCACatalog && comboInstances.some(ci => ci.catalogId === defaultCACatalog.id && ci.displayName === "Default Combo Card");
+    const hasGBPDefault = defaultGBCatalog && comboInstances.some(ci => ci.catalogId === defaultGBCatalog.id && ci.displayName === "Default Combo Card");
+    
     const newInstances: ComboInstance[] = [];
     
-    if (defaultUSCatalog) {
+    if (defaultUSCatalog && !hasUSDDefault && defaultUSCatalog.stores.length > 0) {
       newInstances.push({
         id: `combo-instance-default-usd-${Date.now()}`,
         catalogId: defaultUSCatalog.id,
@@ -916,7 +921,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       });
     }
     
-    if (defaultCACatalog) {
+    if (defaultCACatalog && !hasCADDefault && defaultCACatalog.stores.length > 0) {
       newInstances.push({
         id: `combo-instance-default-cad-${Date.now() + 1}`,
         catalogId: defaultCACatalog.id,
@@ -930,7 +935,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       });
     }
     
-    if (defaultGBCatalog) {
+    if (defaultGBCatalog && !hasGBPDefault && defaultGBCatalog.stores.length > 0) {
       newInstances.push({
         id: `combo-instance-default-gbp-${Date.now() + 2}`,
         catalogId: defaultGBCatalog.id,
@@ -945,9 +950,9 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
     
     if (newInstances.length > 0) {
-      setComboInstances(newInstances);
+      setComboInstances(prev => [...prev, ...newInstances]);
     }
-  }, [catalogs, comboInstances.length]);
+  }, [catalogs, comboInstances]);
 
   // Save legacy combos to localStorage whenever they change
   useEffect(() => {
