@@ -892,6 +892,63 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [comboInstances]);
 
+  // Initialize default combo cards for each currency catalog
+  useEffect(() => {
+    if (catalogs.length === 0 || comboInstances.length > 0) return;
+    
+    const defaultUSCatalog = catalogs.find(c => c.name === "Default USD" && !c.isBranch);
+    const defaultCACatalog = catalogs.find(c => c.name === "Default CAD" && !c.isBranch);
+    const defaultGBCatalog = catalogs.find(c => c.name === "Default GBP" && !c.isBranch);
+    
+    const newInstances: ComboInstance[] = [];
+    
+    if (defaultUSCatalog) {
+      newInstances.push({
+        id: `combo-instance-default-usd-${Date.now()}`,
+        catalogId: defaultUSCatalog.id,
+        displayName: "Default Combo Card",
+        imageUrl: "",
+        masterComboId: null,
+        customStoreNames: defaultUSCatalog.stores.slice(0, 5).map(s => s.name), // First 5 stores
+        denominations: [25, 50, 100],
+        isActive: true,
+        dateModified: new Date(),
+      });
+    }
+    
+    if (defaultCACatalog) {
+      newInstances.push({
+        id: `combo-instance-default-cad-${Date.now() + 1}`,
+        catalogId: defaultCACatalog.id,
+        displayName: "Default Combo Card",
+        imageUrl: "",
+        masterComboId: null,
+        customStoreNames: defaultCACatalog.stores.slice(0, 5).map(s => s.name), // First 5 stores
+        denominations: [25, 50, 100],
+        isActive: true,
+        dateModified: new Date(),
+      });
+    }
+    
+    if (defaultGBCatalog) {
+      newInstances.push({
+        id: `combo-instance-default-gbp-${Date.now() + 2}`,
+        catalogId: defaultGBCatalog.id,
+        displayName: "Default Combo Card",
+        imageUrl: "",
+        masterComboId: null,
+        customStoreNames: defaultGBCatalog.stores.slice(0, 5).map(s => s.name), // First 5 stores
+        denominations: [25, 50, 100],
+        isActive: true,
+        dateModified: new Date(),
+      });
+    }
+    
+    if (newInstances.length > 0) {
+      setComboInstances(newInstances);
+    }
+  }, [catalogs, comboInstances.length]);
+
   // Save legacy combos to localStorage whenever they change
   useEffect(() => {
     if (typeof window !== 'undefined') {
