@@ -323,7 +323,6 @@ export default function CatalogsPage() {
     setStoreFee, 
     setCatalogFee, 
     moveStoreInCatalog, 
-    deleteBranch, 
     getEffectiveCatalog, 
     getTenantsForCatalog, 
     tenants,
@@ -337,7 +336,6 @@ export default function CatalogsPage() {
     setTenantCatalogFeatureFlag,
     getEffectiveCatalogForTenant
   } = useAdminData();
-  const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
   const [expandedStores, setExpandedStores] = useState<Record<string, boolean>>({});
   const [storeSettingsOpen, setStoreSettingsOpen] = useState<Record<string, boolean>>({});
   const [selectedTenantToAddFeature, setSelectedTenantToAddFeature] = useState<Record<string, string>>({});
@@ -362,22 +360,15 @@ export default function CatalogsPage() {
 
   const settingsKey = (catalogId: string, storeName: string) => `${catalogId}::${storeName}`;
 
-  // Organize catalogs into tree structure
-  const catalogTree = useMemo(() => {
-    const baseCatalogs = catalogs.filter(c => !c.isBranch);
-    const branchCatalogs = catalogs.filter(c => c.isBranch);
-    
-    return baseCatalogs.map(base => ({
-      ...base,
-      branches: branchCatalogs.filter(branch => branch.parentId === base.id)
-    }));
+  // Get all catalogs (no branches)
+  const catalogList = useMemo(() => {
+    return catalogs.filter(c => !c.isBranch);
   }, [catalogs]);
 
   // Initialize expandedCatalogs: USD catalogs open by default, others closed
   useEffect(() => {
-    const baseCatalogs = catalogs.filter(c => !c.isBranch);
     const initialExpanded: Record<string, boolean> = {};
-    baseCatalogs.forEach(catalog => {
+    catalogList.forEach(catalog => {
       initialExpanded[catalog.id] = catalog.currency === "USD";
     });
     setExpandedCatalogs(prev => {
@@ -385,7 +376,7 @@ export default function CatalogsPage() {
       const hasAnyExpanded = Object.keys(prev).length > 0;
       return hasAnyExpanded ? prev : initialExpanded;
     });
-  }, [catalogs]);
+  }, [catalogList]);
 
   // Memoize effective catalogs for all catalogs to avoid calling hooks in render
   const effectiveCatalogs = useMemo(() => {
@@ -396,13 +387,6 @@ export default function CatalogsPage() {
     return map;
   }, [catalogs, getEffectiveCatalog]);
 
-
-  const toggleBranchExpansion = (catalogId: string) => {
-    setExpandedBranches(prev => ({
-      ...prev,
-      [catalogId]: !prev[catalogId]
-    }));
-  };
 
   const toggleStoresExpansion = (catalogId: string) => {
     setExpandedStores(prev => ({
@@ -446,30 +430,29 @@ export default function CatalogsPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Catalogs</h1>
             <p className="text-sm text-gray-600">
-              Manage catalog branches and store assignments.
+              Manage catalog store assignments.
             </p>
           </div>
           <div className="text-sm text-gray-500">
-            {catalogTree.length} base catalogs
+            {catalogList.length} catalogs
           </div>
         </div>
       </header>
       
       {/* Catalog Tree View */}
       <div className="space-y-4">
-        {catalogTree.map((baseCatalog) => {
-          const isExpanded = expandedBranches[baseCatalog.id];
-          const effectiveCatalog = getEffectiveCatalog(baseCatalog.id);
-          const isCatalogExpanded = expandedCatalogs[baseCatalog.id] === true; // USD expanded by default, others closed
+        {catalogList.map((catalog) => {
+          const effectiveCatalog = getEffectiveCatalog(catalog.id);
+          const isCatalogExpanded = expandedCatalogs[catalog.id] === true; // USD expanded by default, others closed
           
           return (
-            <div key={baseCatalog.id} className="border border-gray-200 rounded-lg bg-white">
-              {/* Base Catalog Header */}
+            <div key={catalog.id} className="border border-gray-200 rounded-lg bg-white">
+              {/* Catalog Header */}
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => toggleCatalogExpansion(baseCatalog.id)}
+                      onClick={() => toggleCatalogExpansion(catalog.id)}
                       className="text-gray-500 hover:text-gray-700"
                       title={isCatalogExpanded ? "Minimize catalog" : "Maximize catalog"}
                     >
@@ -482,29 +465,13 @@ export default function CatalogsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
-                    <button
-                      onClick={() => toggleBranchExpansion(baseCatalog.id)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <svg 
-                        className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-semibold">{baseCatalog.name}</h3>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
-                        Base
-                      </span>
+                      <h3 className="text-lg font-semibold">{catalog.name}</h3>
                       <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
                         {effectiveCatalog.stores.length} stores
                       </span>
                       <span className="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded">
-                        {getTenantsForCatalog(baseCatalog.id).length} tenants
+                        {getTenantsForCatalog(catalog.id).length} tenants
                       </span>
                     </div>
                   </div>
@@ -521,7 +488,7 @@ export default function CatalogsPage() {
                           <select
                             value={effectiveCatalog.catalogFee.type}
                             onChange={(e) => {
-                              setCatalogFee(baseCatalog.id, {
+                              setCatalogFee(catalog.id, {
                                 type: e.target.value as FeeType,
                                 value: effectiveCatalog.catalogFee?.value || 0
                               });
@@ -539,9 +506,9 @@ export default function CatalogsPage() {
                             onChange={(e) => {
                               const value = parseFloat(e.target.value) || 0;
                               if (value === 0) {
-                                setCatalogFee(baseCatalog.id, null);
+                                setCatalogFee(catalog.id, null);
                               } else {
-                                setCatalogFee(baseCatalog.id, { type: effectiveCatalog.catalogFee!.type, value });
+                                setCatalogFee(catalog.id, { type: effectiveCatalog.catalogFee!.type, value });
                               }
                             }}
                             className="w-32 text-sm border border-gray-300 rounded px-3 py-2"
@@ -552,7 +519,7 @@ export default function CatalogsPage() {
                               : `+${effectiveCatalog.catalogFee.value} ${effectiveCatalog.currency}`}
                           </span>
                           <button
-                            onClick={() => setCatalogFee(baseCatalog.id, null)}
+                            onClick={() => setCatalogFee(catalog.id, null)}
                             className="ml-auto px-2 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
                           >
                             Remove Fee
@@ -562,7 +529,7 @@ export default function CatalogsPage() {
                     ) : (
                       <div className="mt-3">
                         <button
-                          onClick={() => setCatalogFee(baseCatalog.id, { type: 'percentage', value: 5 })}
+                          onClick={() => setCatalogFee(catalog.id, { type: 'percentage', value: 5 })}
                           className="px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
                         >
                           + Add Catalog-Level Fee
@@ -584,8 +551,8 @@ export default function CatalogsPage() {
                     <div className="text-xs font-medium text-gray-700 mb-2">Add Tenant</div>
                     <div className="flex items-center gap-2">
                       <select
-                        value={selectedTenantToAddFeature[baseCatalog.id] || ""}
-                        onChange={(e) => setSelectedTenantToAddFeature(prev => ({ ...prev, [baseCatalog.id]: e.target.value }))}
+                        value={selectedTenantToAddFeature[catalog.id] || ""}
+                        onChange={(e) => setSelectedTenantToAddFeature(prev => ({ ...prev, [catalog.id]: e.target.value }))}
                         className="flex-1 text-xs border border-gray-200 rounded px-2 py-1"
                       >
                         <option value="">Select tenant...</option>
@@ -593,7 +560,7 @@ export default function CatalogsPage() {
                           .filter(tenant => tenant.country === baseCatalog.country)
                           .filter(tenant => {
                             // Only show tenants that don't already have features enabled
-                            const flags = tenantCatalogFeatureFlags[tenant.id]?.[baseCatalog.id];
+                            const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalog.id];
                             return !flags || (!flags.discounts && !flags.visibility && !flags.order);
                           })
                           .map(tenant => (
@@ -604,14 +571,14 @@ export default function CatalogsPage() {
                       </select>
                       <button
                         onClick={() => {
-                          const tenantId = selectedTenantToAddFeature[baseCatalog.id];
+                          const tenantId = selectedTenantToAddFeature[catalog.id];
                           if (tenantId) {
                             // Enable discounts feature by default when adding tenant
-                            setTenantCatalogFeatureFlag(tenantId, baseCatalog.id, 'discounts', true);
-                            setSelectedTenantToAddFeature(prev => ({ ...prev, [baseCatalog.id]: "" }));
+                            setTenantCatalogFeatureFlag(tenantId, catalog.id, 'discounts', true);
+                            setSelectedTenantToAddFeature(prev => ({ ...prev, [catalog.id]: "" }));
                           }
                         }}
-                        disabled={!selectedTenantToAddFeature[baseCatalog.id]}
+                        disabled={!selectedTenantToAddFeature[catalog.id]}
                         className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Add
@@ -621,8 +588,8 @@ export default function CatalogsPage() {
                   
                   {/* Tenants with Features Enabled */}
                   {(() => {
-                    const tenantsWithFeatures = getTenantsForCatalog(baseCatalog.id).filter(tenant => {
-                      const flags = tenantCatalogFeatureFlags[tenant.id]?.[baseCatalog.id];
+                    const tenantsWithFeatures = getTenantsForCatalog(catalog.id).filter(tenant => {
+                      const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalog.id];
                       return flags && (flags.discounts || flags.visibility || flags.order);
                     });
                     
@@ -640,7 +607,7 @@ export default function CatalogsPage() {
                           <TenantCatalogFeaturesSection
                             key={tenant.id}
                             tenant={tenant}
-                            catalogId={baseCatalog.id}
+                            catalogId={catalog.id}
                             stores={stores}
                           />
                         ))}
@@ -651,7 +618,7 @@ export default function CatalogsPage() {
 
                 {/* Combo Instances Section */}
                 {(() => {
-                  const comboInstancesForCatalog = getComboInstancesForCatalog(baseCatalog.id);
+                  const comboInstancesForCatalog = getComboInstancesForCatalog(catalog.id);
                   return (
                     <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
                       <div className="flex items-center justify-between mb-4">
@@ -660,7 +627,7 @@ export default function CatalogsPage() {
                           onClick={() => {
                             setComboInstanceFormData(prev => ({
                               ...prev,
-                              [baseCatalog.id]: {
+                              [catalog.id]: {
                                 displayName: "",
                                 imageUrl: "",
                                 denominations: [],
@@ -669,7 +636,7 @@ export default function CatalogsPage() {
                                 isActive: true,
                               }
                             }));
-                            setShowComboInstanceForm(prev => ({ ...prev, [baseCatalog.id]: true }));
+                            setShowComboInstanceForm(prev => ({ ...prev, [catalog.id]: true }));
                           }}
                           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                         >
@@ -694,7 +661,7 @@ export default function CatalogsPage() {
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {instance.denominations.map(d => (
                                         <span key={d} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                          {getCurrencySymbol(baseCatalog.currency)}{d}
+                                          {getCurrencySymbol(catalog.currency)}{d}
                                         </span>
                                       ))}
                                     </div>
@@ -728,29 +695,29 @@ export default function CatalogsPage() {
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium text-gray-800">Manage Stores</h4>
                     <button
-                      onClick={() => toggleStoresExpansion(baseCatalog.id)}
+                      onClick={() => toggleStoresExpansion(catalog.id)}
                       className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
                     >
-                      {expandedStores[baseCatalog.id] ? 'Hide' : 'Show'}
+                      {expandedStores[catalog.id] ? 'Hide' : 'Show'}
                     </button>
                   </div>
-                  {expandedStores[baseCatalog.id] && (
+                  {expandedStores[catalog.id] && (
                     <div className="mt-2 space-y-3">
                       {/* Current stores (effective for base == own stores) */}
                       <div>
                         <div className="text-xs font-medium text-gray-700 mb-1">
-                          Current Stores ({effectiveCatalogs[baseCatalog.id]?.stores.length || 0})
+                          Current Stores ({effectiveCatalogs[catalog.id]?.stores.length || 0})
                         </div>
                         <div className="max-h-44 overflow-y-auto border border-gray-200 rounded bg-white p-2">
                           <div className="space-y-1">
-                            {(effectiveCatalogs[baseCatalog.id]?.stores || []).map((store, index) => {
-                              const effective = effectiveCatalogs[baseCatalog.id];
+                            {(effectiveCatalogs[catalog.id]?.stores || []).map((store, index) => {
+                              const effective = effectiveCatalogs[catalog.id];
                               const currentDiscount = effective.storeDiscounts[store.name] || 0;
                               const currentCSS = effective.storeCSS[store.name] || "";
-                              const key = settingsKey(baseCatalog.id, store.name);
+                              const key = settingsKey(catalog.id, store.name);
                               const open = !!storeSettingsOpen[key];
                               return (
-                                <div key={`${baseCatalog.id}-${store.name}-${index}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
+                                <div key={`${catalog.id}-${store.name}-${index}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
                                   <div className="flex items-center justify-between text-xs">
                                     <div className="flex items-center gap-2">
                                       <span className="font-medium">{store.name}</span>
@@ -763,12 +730,12 @@ export default function CatalogsPage() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <button
-                                        onClick={() => moveStoreInCatalog(baseCatalog.id, store.name, 'up')}
+                                        onClick={() => moveStoreInCatalog(catalog.id, store.name, 'up')}
                                         className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                                         title="Move up"
                                       >▲</button>
                                       <button
-                                        onClick={() => moveStoreInCatalog(baseCatalog.id, store.name, 'down')}
+                                        onClick={() => moveStoreInCatalog(catalog.id, store.name, 'down')}
                                         className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                                         title="Move down"
                                       >▼</button>
@@ -779,7 +746,7 @@ export default function CatalogsPage() {
                                         {open ? 'Hide' : 'Configure'}
                                       </button>
                                       <button
-                                        onClick={() => removeStoreFromCatalog(baseCatalog.id, store.name)}
+                                        onClick={() => removeStoreFromCatalog(catalog.id, store.name)}
                                         className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
                                       >
                                         Remove
@@ -795,7 +762,7 @@ export default function CatalogsPage() {
                                           min={0}
                                           max={100}
                                           value={currentDiscount}
-                                          onChange={(e) => setStoreDiscount(baseCatalog.id, store.name, parseInt(e.target.value || '0', 10))}
+                                          onChange={(e) => setStoreDiscount(catalog.id, store.name, parseInt(e.target.value || '0', 10))}
                                           className="w-16 h-6 text-xs border border-gray-200 rounded px-1"
                                         />
                                       </div>
@@ -806,7 +773,7 @@ export default function CatalogsPage() {
                                           rows={2}
                                           placeholder='{"backgroundColor":"#f0f0f0"}'
                                           value={(() => { try { return currentCSS; } catch { return ""; } })()}
-                                          onChange={(e) => setStoreCSS(baseCatalog.id, store.name, e.target.value)}
+                                          onChange={(e) => setStoreCSS(catalog.id, store.name, e.target.value)}
                                         />
                                       </div>
                                       {effective.storeFees[store.name] ? (
@@ -816,7 +783,7 @@ export default function CatalogsPage() {
                                             <select
                                               value={effective.storeFees[store.name].type}
                                               onChange={(e) => {
-                                                setStoreFee(baseCatalog.id, store.name, {
+                                                setStoreFee(catalog.id, store.name, {
                                                   type: e.target.value as FeeType,
                                                   value: effective.storeFees[store.name].value
                                                 });
@@ -834,9 +801,9 @@ export default function CatalogsPage() {
                                               onChange={(e) => {
                                                 const value = parseFloat(e.target.value) || 0;
                                                 if (value === 0) {
-                                                  setStoreFee(baseCatalog.id, store.name, null);
+                                                  setStoreFee(catalog.id, store.name, null);
                                                 } else {
-                                                  setStoreFee(baseCatalog.id, store.name, { type: effective.storeFees[store.name].type, value });
+                                                  setStoreFee(catalog.id, store.name, { type: effective.storeFees[store.name].type, value });
                                                 }
                                               }}
                                               className="flex-1 h-6 text-xs border border-gray-200 rounded px-1"
@@ -847,7 +814,7 @@ export default function CatalogsPage() {
                                                 : `+${effective.storeFees[store.name].value}`}
                                             </span>
                                             <button
-                                              onClick={() => setStoreFee(baseCatalog.id, store.name, null)}
+                                              onClick={() => setStoreFee(catalog.id, store.name, null)}
                                               className="px-1 py-0.5 bg-red-100 text-red-800 text-[10px] rounded hover:bg-red-200"
                                             >
                                               Remove
@@ -857,7 +824,7 @@ export default function CatalogsPage() {
                                       ) : (
                                         <div>
                                           <button
-                                            onClick={() => setStoreFee(baseCatalog.id, store.name, { type: 'percentage', value: 5 })}
+                                            onClick={() => setStoreFee(catalog.id, store.name, { type: 'percentage', value: 5 })}
                                             className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[11px] rounded hover:bg-yellow-200"
                                           >
                                             + Add Fee
@@ -878,304 +845,6 @@ export default function CatalogsPage() {
                   </>
                 )}
               </div>
-              
-              {/* Branches */}
-              {isCatalogExpanded && isExpanded && (
-                <div className="p-4 space-y-3">
-                  {baseCatalog.branches.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">No branches created yet</p>
-                  ) : (
-                    baseCatalog.branches.map((branch) => {
-                      const branchEffective = effectiveCatalogs[branch.id];
-                      const isBranchExpanded = expandedCatalogs[branch.id] === true; // default to minimized
-                      
-                      return (
-                        <div key={branch.id} className="border border-gray-200 rounded p-3 bg-gray-50">
-                          <div 
-                            className="flex items-center justify-between cursor-pointer hover:bg-gray-100 -m-3 p-3 rounded"
-                            onClick={() => toggleCatalogExpansion(branch.id)}
-                            title={isBranchExpanded ? "Click to minimize" : "Click to maximize"}
-                          >
-                            <div className="flex items-center gap-2">
-                              <svg 
-                                className={`w-4 h-4 transition-transform text-gray-500 ${isBranchExpanded ? '' : 'rotate-180'}`}
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
-                              </svg>
-                              <h4 className="font-medium">{branch.name}</h4>
-                              <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded">
-                                Branch
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {branchEffective.stores.length} stores
-                              </span>
-                              <span className="text-xs text-purple-600">
-                                {getTenantsForCatalog(branch.id).length} tenants
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteBranch(branch.id);
-                                }}
-                                className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-
-                          
-                          {/* Branch Content - Only show when expanded */}
-                          {isBranchExpanded && (
-                            <>
-                              {/* Catalog-level Fee for Branch */}
-                              {branch.branchChanges.catalogFeeOverride || branchEffective.catalogFee ? (
-                                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Catalog-Level Fee {branch.branchChanges.catalogFeeOverride && '(Branch Override)'}
-                                  </label>
-                                  <div className="flex items-center gap-3">
-                                    <select
-                                      value={branchEffective.catalogFee?.type || 'percentage'}
-                                      onChange={(e) => {
-                                        setCatalogFee(branch.id, {
-                                          type: e.target.value as FeeType,
-                                          value: branchEffective.catalogFee?.value || 0
-                                        });
-                                      }}
-                                      className="text-sm border border-gray-300 rounded px-3 py-2 bg-white"
-                                    >
-                                      <option value="percentage">Percentage (%)</option>
-                                      <option value="fixed">Fixed Amount</option>
-                                    </select>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      step={branchEffective.catalogFee?.type === 'percentage' ? 0.1 : 1}
-                                      value={branchEffective.catalogFee?.value || ''}
-                                      onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        if (value === 0) {
-                                          setCatalogFee(branch.id, null);
-                                        } else {
-                                          setCatalogFee(branch.id, { type: branchEffective.catalogFee!.type, value });
-                                        }
-                                      }}
-                                      className="w-32 text-sm border border-gray-300 rounded px-3 py-2"
-                                    />
-                                    {branchEffective.catalogFee && (
-                                      <span className="px-3 py-1 bg-yellow-200 text-yellow-900 rounded font-medium text-sm">
-                                        {branchEffective.catalogFee.type === 'percentage' 
-                                          ? `+${branchEffective.catalogFee.value}%` 
-                                          : `+${branchEffective.catalogFee.value} ${branchEffective.currency}`}
-                                      </span>
-                                    )}
-                                    {branch.branchChanges.catalogFeeOverride && (
-                                      <button
-                                        onClick={() => setCatalogFee(branch.id, null)}
-                                        className="ml-auto px-2 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
-                                      >
-                                        Remove Override
-                                      </button>
-                                    )}
-                                    {!branch.branchChanges.catalogFeeOverride && branchEffective.catalogFee && (
-                                      <span className="text-xs text-gray-500 italic ml-2">(inherited from base)</span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="mt-2">
-                                  <button
-                                    onClick={() => setCatalogFee(branch.id, { type: 'percentage', value: 5 })}
-                                    className="px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
-                                  >
-                                    + Add Catalog-Level Fee Override
-                                  </button>
-                                </div>
-                              )}
-
-                              {/* Branch Changes Summary */}
-                              <div className="mt-2 text-xs text-gray-600">
-                                {branch.branchChanges.addedStores.length > 0 && (
-                                  <span className="mr-3">+{branch.branchChanges.addedStores.length} stores</span>
-                                )}
-                                {branch.branchChanges.removedStores.length > 0 && (
-                                  <span className="mr-3">-{branch.branchChanges.removedStores.length} stores</span>
-                                )}
-                                {Object.keys(branch.branchChanges.discountOverrides).length > 0 && (
-                                  <span className="mr-3">{Object.keys(branch.branchChanges.discountOverrides).length} discount changes</span>
-                                )}
-                                {Object.keys(branch.branchChanges.cssOverrides).length > 0 && (
-                                  <span className="mr-3">{Object.keys(branch.branchChanges.cssOverrides).length} CSS changes</span>
-                                )}
-                                {Object.keys(branch.branchChanges.feeOverrides).length > 0 && (
-                                  <span className="mr-3">{Object.keys(branch.branchChanges.feeOverrides).length} fee changes</span>
-                                )}
-                                {branch.branchChanges.catalogFeeOverride && (
-                                  <span>Catalog fee override</span>
-                                )}
-                              </div>
-
-                              {/* Manage Stores for Branch */}
-                              <div className="mt-3 p-3 bg-white rounded border">
-                            <div className="text-xs font-medium text-gray-800 mb-2">Manage Stores</div>
-                            {/* Current effective stores */}
-                            <div className="mb-2">
-                              <div className="text-[11px] text-gray-600 mb-1">Current Stores ({branchEffective.stores.length})</div>
-                              <div className="max-h-36 overflow-y-auto border border-gray-200 rounded bg-gray-50 p-2">
-                                <div className="space-y-1">
-                                  {branchEffective.stores.map((store, index) => {
-                                    const currentDiscount = branchEffective.storeDiscounts[store.name] || 0;
-                                    const currentCSS = branchEffective.storeCSS[store.name] || "";
-                                    const key = settingsKey(branch.id, store.name);
-                                    const open = !!storeSettingsOpen[key];
-                                    return (
-                                      <div key={`${branch.id}-${store.name}-${index}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
-                                        <div className="flex items-center justify-between text-xs">
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-medium">{store.name}</span>
-                                            {currentDiscount > 0 && (
-                                              <span className="px-1 py-0.5 bg-green-100 text-green-800 rounded text-[10px]">{currentDiscount}% off</span>
-                                            )}
-                                            {currentCSS && (
-                                              <span className="px-1 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px]">CSS</span>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            <button
-                                              onClick={() => moveStoreInCatalog(branch.id, store.name, 'up')}
-                                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                                              title="Move up"
-                                            >▲</button>
-                                            <button
-                                              onClick={() => moveStoreInCatalog(branch.id, store.name, 'down')}
-                                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                                              title="Move down"
-                                            >▼</button>
-                                            <button
-                                              onClick={() => setStoreSettingsOpen(prev => ({ ...prev, [key]: !open }))}
-                                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                                            >
-                                              {open ? 'Hide' : 'Configure'}
-                                            </button>
-                                            <button
-                                              onClick={() => removeStoreFromCatalog(branch.id, store.name)}
-                                              className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
-                                            >
-                                              Remove
-                                            </button>
-                                          </div>
-                                        </div>
-                                        {open && (
-                                          <>
-                                            <div className="flex items-center gap-2">
-                                              <label className="text-[11px] text-gray-600">Discount %</label>
-                                              <input
-                                                type="number"
-                                                min={0}
-                                                max={100}
-                                                value={currentDiscount}
-                                                onChange={(e) => setStoreDiscount(branch.id, store.name, parseInt(e.target.value || '0', 10))}
-                                                className="w-16 h-6 text-xs border border-gray-200 rounded px-1"
-                                              />
-                                            </div>
-                                            <div>
-                                              <label className="block text-[11px] text-gray-600 mb-1">Custom CSS (JSON)</label>
-                                              <textarea
-                                                className="w-full text-[11px] border border-gray-200 rounded p-1 bg-white"
-                                                rows={2}
-                                                placeholder='{"backgroundColor":"#f0f0f0"}'
-                                                value={(() => { try { return currentCSS; } catch { return ""; } })()}
-                                                onChange={(e) => setStoreCSS(branch.id, store.name, e.target.value)}
-                                              />
-                                            </div>
-                                            {branchEffective.storeFees[store.name] ? (
-                                              <div>
-                                                <label className="block text-[11px] text-gray-600 mb-1">
-                                                  Additional Fee {branch.branchChanges.feeOverrides[store.name] && '(Override)'}
-                                                </label>
-                                                <div className="flex items-center gap-2">
-                                                  <select
-                                                    value={branchEffective.storeFees[store.name].type}
-                                                    onChange={(e) => {
-                                                      setStoreFee(branch.id, store.name, {
-                                                        type: e.target.value as FeeType,
-                                                        value: branchEffective.storeFees[store.name].value
-                                                      });
-                                                    }}
-                                                    className="text-xs border border-gray-200 rounded px-2 py-1 bg-white"
-                                                  >
-                                                    <option value="percentage">%</option>
-                                                    <option value="fixed">Fixed</option>
-                                                  </select>
-                                                  <input
-                                                    type="number"
-                                                    min={0}
-                                                    step={branchEffective.storeFees[store.name].type === 'percentage' ? 0.1 : 1}
-                                                    value={branchEffective.storeFees[store.name].value}
-                                                    onChange={(e) => {
-                                                      const value = parseFloat(e.target.value) || 0;
-                                                      if (value === 0) {
-                                                        setStoreFee(branch.id, store.name, null);
-                                                      } else {
-                                                        setStoreFee(branch.id, store.name, { type: branchEffective.storeFees[store.name].type, value });
-                                                      }
-                                                    }}
-                                                    className="flex-1 h-6 text-xs border border-gray-200 rounded px-1"
-                                                  />
-                                                  <span className="px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded text-[10px]">
-                                                    {branchEffective.storeFees[store.name].type === 'percentage' 
-                                                      ? `+${branchEffective.storeFees[store.name].value}%` 
-                                                      : `+${branchEffective.storeFees[store.name].value}`}
-                                                  </span>
-                                                  {branch.branchChanges.feeOverrides[store.name] && (
-                                                    <button
-                                                      onClick={() => setStoreFee(branch.id, store.name, null)}
-                                                      className="px-1 py-0.5 bg-red-100 text-red-800 text-[10px] rounded hover:bg-red-200"
-                                                    >
-                                                      Remove
-                                                    </button>
-                                                  )}
-                                                  {!branch.branchChanges.feeOverrides[store.name] && (
-                                                    <span className="text-[10px] text-gray-500 italic">(inherited)</span>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            ) : (
-                                              <div>
-                                                <button
-                                                  onClick={() => setStoreFee(branch.id, store.name, { type: 'percentage', value: 5 })}
-                                                  className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[11px] rounded hover:bg-yellow-200"
-                                                >
-                                                  + Add Fee
-                                                </button>
-                                              </div>
-                                            )}
-                                          </>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
             </div>
           );
         })}
