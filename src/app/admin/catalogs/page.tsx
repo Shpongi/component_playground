@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
-import type { Fee, FeeType, Catalog, ComboInstance, Store, Tenant } from "../_components/AdminDataProvider";
+import type { Fee, FeeType, Catalog, Store, Tenant } from "../_components/AdminDataProvider";
 
 // Tenant-Catalog Features Section Component
 function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: Tenant; catalogId: string; stores: Store[] }) {
@@ -310,12 +310,6 @@ export default function CatalogsPage() {
     getActiveStores,
     combos, 
     masterCombos,
-    comboInstances,
-    createComboInstance,
-    updateComboInstance,
-    deleteComboInstance,
-    getComboInstancesForCatalog,
-    getComboInstanceStores,
     getMasterCombo,
     removeStoreFromCatalog, 
     setStoreDiscount, 
@@ -340,16 +334,6 @@ export default function CatalogsPage() {
   const [storeSettingsOpen, setStoreSettingsOpen] = useState<Record<string, boolean>>({});
   const [selectedTenantToAddFeature, setSelectedTenantToAddFeature] = useState<Record<string, string>>({});
   const [expandedCatalogs, setExpandedCatalogs] = useState<Record<string, boolean>>({});
-  const [expandedComboInstances, setExpandedComboInstances] = useState<Record<string, boolean>>({});
-  const [showComboInstanceForm, setShowComboInstanceForm] = useState<Record<string, boolean>>({});
-  const [comboInstanceFormData, setComboInstanceFormData] = useState<Record<string, {
-    masterComboId: string | null;
-    displayName: string;
-    imageUrl: string;
-    customStoreNames: string[];
-    denominations: number[];
-    isActive: boolean;
-  }>>({});
 
   const toggleCatalogExpansion = (catalogId: string) => {
     setExpandedCatalogs(prev => ({
@@ -402,26 +386,6 @@ export default function CatalogsPage() {
     return currency;
   };
 
-  const handleEditComboInstance = (instance: ComboInstance) => {
-    setComboInstanceFormData(prev => ({
-      ...prev,
-      [instance.catalogId]: {
-        masterComboId: instance.masterComboId || null,
-        displayName: instance.displayName,
-        imageUrl: instance.imageUrl || "",
-        customStoreNames: instance.customStoreNames || [],
-        denominations: instance.denominations || [],
-        isActive: instance.isActive,
-      }
-    }));
-    setShowComboInstanceForm(prev => ({ ...prev, [instance.catalogId]: true }));
-  };
-
-  const handleDeleteComboInstance = (instanceId: string) => {
-    if (confirm("Are you sure you want to delete this combo card?")) {
-      deleteComboInstance(instanceId);
-    }
-  };
 
   return (
     <section className="space-y-6">
@@ -615,80 +579,6 @@ export default function CatalogsPage() {
                     );
                   })()}
                 </div>
-
-                {/* Combo Instances Section */}
-                {(() => {
-                  const comboInstancesForCatalog = getComboInstancesForCatalog(catalog.id);
-                  return (
-                    <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Combo Cards in this Catalog</h3>
-                        <button
-                          onClick={() => {
-                            setComboInstanceFormData(prev => ({
-                              ...prev,
-                              [catalog.id]: {
-                                displayName: "",
-                                imageUrl: "",
-                                denominations: [],
-                                masterComboId: null,
-                                customStoreNames: [],
-                                isActive: true,
-                              }
-                            }));
-                            setShowComboInstanceForm(prev => ({ ...prev, [catalog.id]: true }));
-                          }}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-                        >
-                          + Add New Combo to Catalog
-                        </button>
-                      </div>
-                      {comboInstancesForCatalog.length === 0 ? (
-                        <p className="text-sm text-gray-500 italic">No combo cards in this catalog yet.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {comboInstancesForCatalog.map(instance => {
-                            const source = instance.masterComboId ? getMasterCombo(instance.masterComboId) : null;
-                            const storeNames = getComboInstanceStores(instance.id);
-                            return (
-                              <div key={instance.id} className="border border-gray-200 rounded-md p-3 flex items-center justify-between">
-                                <div>
-                                  <div className="font-medium text-gray-800">{instance.displayName}</div>
-                                  <div className="text-xs text-gray-600">
-                                    {source ? `Based on: ${source.name}` : "Custom"} ({storeNames.length} stores)
-                                  </div>
-                                  {instance.denominations.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {instance.denominations.map(d => (
-                                        <span key={d} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                          {getCurrencySymbol(catalog.currency)}{d}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleEditComboInstance(instance)}
-                                    className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-md hover:bg-yellow-200 text-xs font-medium"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteComboInstance(instance.id)}
-                                    className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 text-xs font-medium"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
 
                 {/* Manage Stores Section */}
                 <div className="mt-3 p-3 bg-gray-50 rounded border">
