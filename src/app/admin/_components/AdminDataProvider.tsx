@@ -892,67 +892,59 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [comboInstances]);
 
-  // Initialize default combo cards for each currency catalog
+  // Initialize default master combos (one per currency)
   useEffect(() => {
-    if (catalogs.length === 0) return;
+    if (stores.length === 0) return;
     
-    const defaultUSCatalog = catalogs.find(c => c.name === "Default USD" && !c.isBranch);
-    const defaultCACatalog = catalogs.find(c => c.name === "Default CAD" && !c.isBranch);
-    const defaultGBCatalog = catalogs.find(c => c.name === "Default GBP" && !c.isBranch);
+    // Check if default master combos already exist
+    const hasUSDDefault = masterCombos.some(m => m.name === "Default Combo Card" && m.currency === "USD");
+    const hasCADDefault = masterCombos.some(m => m.name === "Default Combo Card" && m.currency === "CAD");
+    const hasGBPDefault = masterCombos.some(m => m.name === "Default Combo Card" && m.currency === "GBP");
     
-    // Check if default combo cards already exist
-    const hasUSDDefault = defaultUSCatalog && comboInstances.some(ci => ci.catalogId === defaultUSCatalog.id && ci.displayName === "Default Combo Card");
-    const hasCADDefault = defaultCACatalog && comboInstances.some(ci => ci.catalogId === defaultCACatalog.id && ci.displayName === "Default Combo Card");
-    const hasGBPDefault = defaultGBCatalog && comboInstances.some(ci => ci.catalogId === defaultGBCatalog.id && ci.displayName === "Default Combo Card");
+    const newCombos: MasterCombo[] = [];
     
-    const newInstances: ComboInstance[] = [];
+    // Get stores for each currency
+    const usStores = stores.filter(s => s.country === "US").slice(0, 5).map(s => s.name);
+    const caStores = stores.filter(s => s.country === "CA").slice(0, 5).map(s => s.name);
+    const gbStores = stores.filter(s => s.country === "GB").slice(0, 5).map(s => s.name);
     
-    if (defaultUSCatalog && !hasUSDDefault && defaultUSCatalog.stores.length > 0) {
-      newInstances.push({
-        id: `combo-instance-default-usd-${Date.now()}`,
-        catalogId: defaultUSCatalog.id,
-        displayName: "Default Combo Card",
-        imageUrl: "",
-        masterComboId: null,
-        customStoreNames: defaultUSCatalog.stores.slice(0, 5).map(s => s.name), // First 5 stores
-        denominations: [25, 50, 100],
+    if (!hasUSDDefault && usStores.length > 0) {
+      newCombos.push({
+        id: `master-combo-default-usd-${Date.now()}`,
+        name: "Default Combo Card",
+        currency: "USD",
+        storeNames: usStores,
         isActive: true,
         dateModified: new Date(),
       });
     }
     
-    if (defaultCACatalog && !hasCADDefault && defaultCACatalog.stores.length > 0) {
-      newInstances.push({
-        id: `combo-instance-default-cad-${Date.now() + 1}`,
-        catalogId: defaultCACatalog.id,
-        displayName: "Default Combo Card",
-        imageUrl: "",
-        masterComboId: null,
-        customStoreNames: defaultCACatalog.stores.slice(0, 5).map(s => s.name), // First 5 stores
-        denominations: [25, 50, 100],
+    if (!hasCADDefault && caStores.length > 0) {
+      newCombos.push({
+        id: `master-combo-default-cad-${Date.now() + 1}`,
+        name: "Default Combo Card",
+        currency: "CAD",
+        storeNames: caStores,
         isActive: true,
         dateModified: new Date(),
       });
     }
     
-    if (defaultGBCatalog && !hasGBPDefault && defaultGBCatalog.stores.length > 0) {
-      newInstances.push({
-        id: `combo-instance-default-gbp-${Date.now() + 2}`,
-        catalogId: defaultGBCatalog.id,
-        displayName: "Default Combo Card",
-        imageUrl: "",
-        masterComboId: null,
-        customStoreNames: defaultGBCatalog.stores.slice(0, 5).map(s => s.name), // First 5 stores
-        denominations: [25, 50, 100],
+    if (!hasGBPDefault && gbStores.length > 0) {
+      newCombos.push({
+        id: `master-combo-default-gbp-${Date.now() + 2}`,
+        name: "Default Combo Card",
+        currency: "GBP",
+        storeNames: gbStores,
         isActive: true,
         dateModified: new Date(),
       });
     }
     
-    if (newInstances.length > 0) {
-      setComboInstances(prev => [...prev, ...newInstances]);
+    if (newCombos.length > 0) {
+      setMasterCombos(prev => [...prev, ...newCombos]);
     }
-  }, [catalogs, comboInstances]);
+  }, [stores, masterCombos]);
 
   // Save legacy combos to localStorage whenever they change
   useEffect(() => {

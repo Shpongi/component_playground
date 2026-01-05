@@ -863,7 +863,15 @@ export default function CatalogsPage() {
           denominations: [],
           isActive: true,
         };
-        const availableMasterCombos = masterCombos.filter(m => m.currency === catalog.currency && m.isActive);
+        // Sort master combos so "Default Combo Card" appears first
+        const availableMasterCombos = masterCombos
+          .filter(m => m.currency === catalog.currency && m.isActive)
+          .sort((a, b) => {
+            // Put "Default Combo Card" first
+            if (a.name === "Default Combo Card" && b.name !== "Default Combo Card") return -1;
+            if (b.name === "Default Combo Card" && a.name !== "Default Combo Card") return 1;
+            return a.name.localeCompare(b.name);
+          });
         const availableStores = stores.filter(s => s.country === catalog.country);
 
         return (
