@@ -326,8 +326,6 @@ export default function CatalogsPage() {
     deleteBranch, 
     getEffectiveCatalog, 
     getTenantsForCatalog, 
-    addTenantToCatalog, 
-    removeTenantFromCatalog, 
     tenants,
     setTenantCatalogStoreDiscount,
     tenantCatalogStoreDiscounts,
@@ -340,8 +338,6 @@ export default function CatalogsPage() {
     getEffectiveCatalogForTenant
   } = useAdminData();
   const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
-  const [expandedTenants, setExpandedTenants] = useState<Record<string, boolean>>({});
-  const [selectedTenantToAdd, setSelectedTenantToAdd] = useState<Record<string, string>>({});
   const [expandedStores, setExpandedStores] = useState<Record<string, boolean>>({});
   const [storeSettingsOpen, setStoreSettingsOpen] = useState<Record<string, boolean>>({});
   const [expandedCatalogs, setExpandedCatalogs] = useState<Record<string, boolean>>({});
@@ -407,35 +403,12 @@ export default function CatalogsPage() {
     }));
   };
 
-  const toggleTenantExpansion = (catalogId: string) => {
-    setExpandedTenants(prev => ({
-      ...prev,
-      [catalogId]: !prev[catalogId]
-    }));
-  };
-
   const toggleStoresExpansion = (catalogId: string) => {
     setExpandedStores(prev => ({
       ...prev,
       [catalogId]: !prev[catalogId]
     }));
   };
-
-  const handleAddTenantToCatalog = (catalogId: string) => {
-    const tenantId = selectedTenantToAdd[catalogId];
-    if (tenantId) {
-      addTenantToCatalog(catalogId, tenantId);
-      setSelectedTenantToAdd(prev => ({ ...prev, [catalogId]: "" }));
-    }
-  };
-
-  const getAvailableTenantsForCatalog = (catalog: Catalog) => {
-    return tenants.filter(tenant => 
-      tenant.country === catalog.country && 
-      getTenantsForCatalog(catalog.id).every(t => t.id !== tenant.id)
-    );
-  };
-
 
   const getCurrencySymbol = (currency: string) => {
     if (currency === "USD") return "$";
@@ -606,66 +579,6 @@ export default function CatalogsPage() {
                         </button>
                       </div>
                     )}
-
-                {/* Tenant Management Section */}
-                {expandedTenants[baseCatalog.id] && (
-                  <div className="mt-3 p-3 bg-purple-50 rounded border">
-                    <h4 className="text-sm font-medium text-purple-800 mb-3">Tenant Management</h4>
-                    
-                    {/* Current Tenants */}
-                    <div className="mb-3">
-                      <div className="text-xs font-medium text-gray-700 mb-2">Current Tenants ({getTenantsForCatalog(baseCatalog.id).length})</div>
-                      {getTenantsForCatalog(baseCatalog.id).length === 0 ? (
-                        <p className="text-xs text-gray-500 italic">No tenants assigned</p>
-                      ) : (
-                        <div className="space-y-1">
-                          {getTenantsForCatalog(baseCatalog.id).map(tenant => (
-                            <div key={tenant.id} className="flex items-center justify-between bg-white rounded p-2 border">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium">{tenant.name}</span>
-                                <span className="px-1 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
-                                  {tenant.country}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => removeTenantFromCatalog(baseCatalog.id, tenant.id)}
-                                className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Add Tenant */}
-                    <div>
-                      <div className="text-xs font-medium text-gray-700 mb-2">Add Tenant</div>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={selectedTenantToAdd[baseCatalog.id] || ""}
-                          onChange={(e) => setSelectedTenantToAdd(prev => ({ ...prev, [baseCatalog.id]: e.target.value }))}
-                          className="flex-1 text-xs border border-gray-200 rounded px-2 py-1"
-                        >
-                          <option value="">Select tenant...</option>
-                          {getAvailableTenantsForCatalog(baseCatalog).map(tenant => (
-                            <option key={tenant.id} value={tenant.id}>
-                              {tenant.name} ({tenant.country})
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleAddTenantToCatalog(baseCatalog.id)}
-                          disabled={!selectedTenantToAdd[baseCatalog.id]}
-                          className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Tenant-Specific Features Section */}
                 {getTenantsForCatalog(baseCatalog.id).length > 0 && (
