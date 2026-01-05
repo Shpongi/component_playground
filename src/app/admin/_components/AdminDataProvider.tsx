@@ -1233,6 +1233,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       ...baseCatalog,
       stores: visibleStores,
       storeDiscounts: effectiveDiscounts,
+      storeCSS: baseCatalog.storeCSS, // Include storeCSS in the returned catalog
     };
   }
 
