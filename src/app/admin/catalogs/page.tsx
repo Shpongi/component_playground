@@ -340,6 +340,7 @@ export default function CatalogsPage() {
   const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
   const [expandedStores, setExpandedStores] = useState<Record<string, boolean>>({});
   const [storeSettingsOpen, setStoreSettingsOpen] = useState<Record<string, boolean>>({});
+  const [selectedTenantToAddFeature, setSelectedTenantToAddFeature] = useState<Record<string, string>>({});
   const [expandedCatalogs, setExpandedCatalogs] = useState<Record<string, boolean>>({});
   const [expandedComboInstances, setExpandedComboInstances] = useState<Record<string, boolean>>({});
   const [showComboInstanceForm, setShowComboInstanceForm] = useState<Record<string, boolean>>({});
@@ -507,11 +508,6 @@ export default function CatalogsPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">
-                      {baseCatalog.branches.length} branches
-                    </span>
-                  </div>
                 </div>
                 
                 {/* Catalog Content - Only show when expanded */}
@@ -575,24 +571,83 @@ export default function CatalogsPage() {
                     )}
 
                 {/* Tenant-Specific Features Section */}
-                {getTenantsForCatalog(baseCatalog.id).length > 0 && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded border">
-                    <h4 className="text-sm font-medium text-blue-800 mb-3">Tenant-Specific Features</h4>
-                    <div className="text-xs text-gray-600 mb-3">
-                      Configure discounts, visibility, and store order for each tenant using this catalog.
-                    </div>
-                    <div className="space-y-3">
-                      {getTenantsForCatalog(baseCatalog.id).map(tenant => (
-                        <TenantCatalogFeaturesSection
-                          key={tenant.id}
-                          tenant={tenant}
-                          catalogId={baseCatalog.id}
-                          stores={stores}
-                        />
-                      ))}
+                <div className="mt-3 p-3 bg-blue-50 rounded border">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-blue-800">Tenant-Specific Features</h4>
+                  </div>
+                  <div className="text-xs text-gray-600 mb-3">
+                    Configure discounts, visibility, and store order for specific tenants using this catalog.
+                  </div>
+                  
+                  {/* Add Tenant to Features */}
+                  <div className="mb-3">
+                    <div className="text-xs font-medium text-gray-700 mb-2">Add Tenant</div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedTenantToAddFeature[baseCatalog.id] || ""}
+                        onChange={(e) => setSelectedTenantToAddFeature(prev => ({ ...prev, [baseCatalog.id]: e.target.value }))}
+                        className="flex-1 text-xs border border-gray-200 rounded px-2 py-1"
+                      >
+                        <option value="">Select tenant...</option>
+                        {tenants
+                          .filter(tenant => tenant.country === baseCatalog.country)
+                          .filter(tenant => {
+                            // Only show tenants that don't already have features enabled
+                            const flags = tenantCatalogFeatureFlags[tenant.id]?.[baseCatalog.id];
+                            return !flags || (!flags.discounts && !flags.visibility && !flags.order);
+                          })
+                          .map(tenant => (
+                            <option key={tenant.id} value={tenant.id}>
+                              {tenant.name} ({tenant.country})
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          const tenantId = selectedTenantToAddFeature[baseCatalog.id];
+                          if (tenantId) {
+                            // Enable discounts feature by default when adding tenant
+                            setTenantCatalogFeatureFlag(tenantId, baseCatalog.id, 'discounts', true);
+                            setSelectedTenantToAddFeature(prev => ({ ...prev, [baseCatalog.id]: "" }));
+                          }
+                        }}
+                        disabled={!selectedTenantToAddFeature[baseCatalog.id]}
+                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Add
+                      </button>
                     </div>
                   </div>
-                )}
+                  
+                  {/* Tenants with Features Enabled */}
+                  {(() => {
+                    const tenantsWithFeatures = getTenantsForCatalog(baseCatalog.id).filter(tenant => {
+                      const flags = tenantCatalogFeatureFlags[tenant.id]?.[baseCatalog.id];
+                      return flags && (flags.discounts || flags.visibility || flags.order);
+                    });
+                    
+                    if (tenantsWithFeatures.length === 0) {
+                      return (
+                        <div className="text-xs text-gray-500 p-2 bg-white rounded border border-gray-200">
+                          No tenants with features enabled. Add a tenant above to configure features.
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="space-y-3">
+                        {tenantsWithFeatures.map(tenant => (
+                          <TenantCatalogFeaturesSection
+                            key={tenant.id}
+                            tenant={tenant}
+                            catalogId={baseCatalog.id}
+                            stores={stores}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
 
                 {/* Combo Instances Section */}
                 {(() => {
