@@ -557,7 +557,7 @@ export default function CatalogsPage() {
                       >
                         <option value="">Select tenant...</option>
                         {tenants
-                          .filter(tenant => tenant.country === baseCatalog.country)
+                          .filter(tenant => tenant.country === catalog.country)
                           .filter(tenant => {
                             // Only show tenants that don't already have features enabled
                             const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalog.id];
