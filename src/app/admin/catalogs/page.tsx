@@ -2,7 +2,306 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
-import type { Fee, FeeType, Catalog, ComboInstance } from "../_components/AdminDataProvider";
+import type { Fee, FeeType, Catalog, ComboInstance, Store, Tenant } from "../_components/AdminDataProvider";
+
+// Tenant-Catalog Features Section Component
+function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: Tenant; catalogId: string; stores: Store[] }) {
+  const {
+    tenantCatalogFeatureFlags,
+    setTenantCatalogFeatureFlag,
+    setTenantCatalogStoreDiscount,
+    tenantCatalogStoreDiscounts,
+    setTenantCatalogStoreVisibility,
+    tenantCatalogHiddenStores,
+    updateTenantCatalogStoreOrder,
+    tenantCatalogStoreOrder,
+    getEffectiveCatalogForTenant
+  } = useAdminData();
+  
+  const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalogId] || {};
+  const hasAnyFeature = flags.discounts || flags.visibility || flags.order;
+  
+  return (
+    <div className="bg-white rounded border border-gray-200 p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-medium text-sm text-gray-800">{tenant.name}</div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={flags.discounts || false}
+              onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'discounts', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600"
+            />
+            <span className="text-xs text-gray-600">Discounts</span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={flags.visibility || false}
+              onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'visibility', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600"
+            />
+            <span className="text-xs text-gray-600">Visibility</span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={flags.order || false}
+              onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'order', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600"
+            />
+            <span className="text-xs text-gray-600">Order</span>
+          </label>
+        </div>
+      </div>
+      
+      {!hasAnyFeature && (
+        <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded border border-gray-200">
+          Enable features above to customize this tenant's catalog settings.
+        </div>
+      )}
+      
+      {flags.discounts && (
+        <TenantCatalogDiscountsSection tenant={tenant} catalogId={catalogId} stores={stores} />
+      )}
+      
+      {flags.visibility && (
+        <TenantCatalogVisibilitySection tenant={tenant} catalogId={catalogId} stores={stores} />
+      )}
+      
+      {flags.order && (
+        <TenantCatalogOrderSection tenant={tenant} catalogId={catalogId} />
+      )}
+    </div>
+  );
+}
+
+function TenantCatalogDiscountsSection({ tenant, catalogId, stores }: { tenant: Tenant; catalogId: string; stores: Store[] }) {
+  const { tenantCatalogStoreDiscounts, setTenantCatalogStoreDiscount } = useAdminData();
+  const catalogDiscounts = tenantCatalogStoreDiscounts[tenant.id]?.[catalogId] || {};
+  const [expanded, setExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const tenantStores = stores.filter(s => s.country === tenant.country);
+  const hasDiscounts = Object.keys(catalogDiscounts).length > 0;
+  const storesWithDiscounts = Object.keys(catalogDiscounts);
+  const availableStores = tenantStores
+    .filter(s => !catalogDiscounts[s.name] || catalogDiscounts[s.name] === 0)
+    .filter(s => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  return (
+    <div className="expandable-section mt-2">
+      <button onClick={() => setExpanded(!expanded)} className="expandable-header">
+        <span>Store Discounts</span>
+        {hasDiscounts && <span className="badge badge-primary text-[10px]">{storesWithDiscounts.length}</span>}
+        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="expandable-content">
+          {storesWithDiscounts.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-medium text-gray-700 mb-2">Stores with Discounts ({storesWithDiscounts.length})</div>
+              <div className="space-y-2">
+                {storesWithDiscounts.map(storeName => (
+                  <div key={storeName} className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+                    <span className="text-xs text-gray-700 flex-1">{storeName}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={catalogDiscounts[storeName]}
+                      onChange={(e) => setTenantCatalogStoreDiscount(tenant.id, catalogId, storeName, parseInt(e.target.value || '0', 10))}
+                      className="input-sm w-20 h-7"
+                    />
+                    <span className="text-xs text-gray-500">%</span>
+                    <button
+                      onClick={() => setTenantCatalogStoreDiscount(tenant.id, catalogId, storeName, 0)}
+                      className="text-red-600 hover:text-red-800 text-xs font-medium"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <div className="text-xs font-medium text-gray-700 mb-2">Add Discount to Store</div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search stores..."
+              className="input input-sm mb-2"
+            />
+            {searchQuery && availableStores.length > 0 && (
+              <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white">
+                {availableStores.map(store => (
+                  <button
+                    key={store.name}
+                    onClick={() => {
+                      setTenantCatalogStoreDiscount(tenant.id, catalogId, store.name, 5);
+                      setSearchQuery("");
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                  >
+                    {store.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TenantCatalogVisibilitySection({ tenant, catalogId, stores }: { tenant: Tenant; catalogId: string; stores: Store[] }) {
+  const { tenantCatalogHiddenStores, setTenantCatalogStoreVisibility } = useAdminData();
+  const hiddenStores = tenantCatalogHiddenStores[tenant.id]?.[catalogId] || new Set<string>();
+  const [expanded, setExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const tenantStores = stores.filter(s => s.country === tenant.country);
+  const hiddenStoresList = Array.from(hiddenStores);
+  const availableStores = tenantStores
+    .filter(s => !hiddenStores.has(s.name))
+    .filter(s => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  return (
+    <div className="expandable-section mt-2">
+      <button onClick={() => setExpanded(!expanded)} className="expandable-header">
+        <span>Store Visibility</span>
+        {hiddenStores.size > 0 && <span className="badge badge-danger text-[10px]">{hiddenStores.size} hidden</span>}
+        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="expandable-content">
+          {hiddenStoresList.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-medium text-gray-700 mb-2">Hidden Stores ({hiddenStoresList.length})</div>
+              <div className="flex flex-wrap gap-2">
+                {hiddenStoresList.map(storeName => (
+                  <div key={storeName} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-md">
+                    <span className="text-xs text-gray-700">{storeName}</span>
+                    <button
+                      onClick={() => setTenantCatalogStoreVisibility(tenant.id, catalogId, storeName, false)}
+                      className="text-red-600 hover:text-red-800 text-xs font-medium"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <div className="text-xs font-medium text-gray-700 mb-2">Add Store to Hide</div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search stores..."
+              className="input input-sm mb-2"
+            />
+            {searchQuery && availableStores.length > 0 && (
+              <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white">
+                {availableStores.map(store => (
+                  <button
+                    key={store.name}
+                    onClick={() => {
+                      setTenantCatalogStoreVisibility(tenant.id, catalogId, store.name, true);
+                      setSearchQuery("");
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                  >
+                    {store.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TenantCatalogOrderSection({ tenant, catalogId }: { tenant: Tenant; catalogId: string }) {
+  const { getEffectiveCatalogForTenant, updateTenantCatalogStoreOrder, tenantCatalogStoreOrder } = useAdminData();
+  const [expanded, setExpanded] = useState(false);
+  const customOrder = tenantCatalogStoreOrder[tenant.id]?.[catalogId];
+  const hasCustomOrder = customOrder && customOrder.length > 0;
+  
+  const effectiveCatalog = getEffectiveCatalogForTenant(tenant.id, catalogId);
+  const currentStoreOrder = effectiveCatalog.stores.map(s => s.name);
+  
+  const handleMoveStore = (storeName: string, direction: 'up' | 'down') => {
+    const order = hasCustomOrder ? [...customOrder] : [...currentStoreOrder];
+    const index = order.indexOf(storeName);
+    if (index === -1) return;
+    
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= order.length) return;
+    
+    [order[index], order[newIndex]] = [order[newIndex], order[index]];
+    updateTenantCatalogStoreOrder(tenant.id, catalogId, order);
+  };
+  
+  const handleResetOrder = () => {
+    updateTenantCatalogStoreOrder(tenant.id, catalogId, []);
+  };
+  
+  return (
+    <div className="expandable-section mt-2">
+      <button onClick={() => setExpanded(!expanded)} className="expandable-header">
+        <span>Store Order</span>
+        {hasCustomOrder && <span className="badge badge-primary text-[10px]">Custom</span>}
+        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="expandable-content">
+          {hasCustomOrder && (
+            <button onClick={handleResetOrder} className="btn btn-secondary btn-xs mb-2">
+              Reset to Default Order
+            </button>
+          )}
+          <div className="space-y-1 border border-gray-200 rounded-md p-2 bg-gray-50">
+            {currentStoreOrder.map((storeName, index) => (
+              <div key={storeName} className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200">
+                <div className="flex-1 text-xs text-gray-700">{storeName}</div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleMoveStore(storeName, 'up')}
+                    disabled={index === 0}
+                    className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs disabled:opacity-50"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    onClick={() => handleMoveStore(storeName, 'down')}
+                    disabled={index === currentStoreOrder.length - 1}
+                    className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs disabled:opacity-50"
+                  >
+                    ↓
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CatalogsPage() {
   const { 
@@ -29,7 +328,16 @@ export default function CatalogsPage() {
     getTenantsForCatalog, 
     addTenantToCatalog, 
     removeTenantFromCatalog, 
-    tenants 
+    tenants,
+    setTenantCatalogStoreDiscount,
+    tenantCatalogStoreDiscounts,
+    setTenantCatalogStoreVisibility,
+    tenantCatalogHiddenStores,
+    updateTenantCatalogStoreOrder,
+    tenantCatalogStoreOrder,
+    tenantCatalogFeatureFlags,
+    setTenantCatalogFeatureFlag,
+    getEffectiveCatalogForTenant
   } = useAdminData();
   const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
   const [expandedTenants, setExpandedTenants] = useState<Record<string, boolean>>({});
@@ -355,6 +663,26 @@ export default function CatalogsPage() {
                           Add
                         </button>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tenant-Specific Features Section */}
+                {getTenantsForCatalog(baseCatalog.id).length > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded border">
+                    <h4 className="text-sm font-medium text-blue-800 mb-3">Tenant-Specific Features</h4>
+                    <div className="text-xs text-gray-600 mb-3">
+                      Configure discounts, visibility, and store order for each tenant using this catalog.
+                    </div>
+                    <div className="space-y-3">
+                      {getTenantsForCatalog(baseCatalog.id).map(tenant => (
+                        <TenantCatalogFeaturesSection
+                          key={tenant.id}
+                          tenant={tenant}
+                          catalogId={baseCatalog.id}
+                          stores={stores}
+                        />
+                      ))}
                     </div>
                   </div>
                 )}
