@@ -740,8 +740,7 @@ export default function CatalogsPage() {
         })}
       </div>
 
-      {/* Combo Instance Form Modal */}
-      {Object.entries(showComboInstanceForm).map(([catalogId, isOpen]) => {
+      {/* Combo Instance Form Modal removed */}
         if (!isOpen) return null;
         const catalog = catalogs.find(c => c.id === catalogId);
         if (!catalog) return null;
