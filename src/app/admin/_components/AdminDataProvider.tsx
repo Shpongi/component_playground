@@ -1195,6 +1195,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       if (savedComboInstances) {
         try {
           const parsed = JSON.parse(savedComboInstances);
+          // If we have 3 or more instances in localStorage, mark as initialized
+          if (parsed.length >= 3) {
+            comboInstancesInitializedRef.current = true;
+          }
           setComboInstances(parsed.map((c: Omit<ComboInstance, 'dateModified'> & { dateModified?: string }) => ({
             ...c,
             dateModified: c.dateModified ? new Date(c.dateModified) : new Date(),
@@ -1335,15 +1339,46 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
 
     const newComboInstances: ComboInstance[] = [];
 
-    // Create 3 combo instances - one for each currency
+    // Check if we already have instances for each catalog (check both state and localStorage)
+    const existingCatalogIds = new Set(comboInstances.map(ci => ci.catalogId));
+    
+    // Also check localStorage to catch cases where state hasn't updated yet
+    if (typeof window !== 'undefined') {
+      const savedComboInstances = localStorage.getItem('admin-combo-instances');
+      if (savedComboInstances) {
+        try {
+          const parsed = JSON.parse(savedComboInstances);
+          parsed.forEach((c: ComboInstance) => {
+            existingCatalogIds.add(c.catalogId);
+          });
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+    
+    const usCatalogHasInstance = existingCatalogIds.has(usCatalog.id);
+    const caCatalogHasInstance = existingCatalogIds.has(caCatalog.id);
+    const gbCatalogHasInstance = existingCatalogIds.has(gbCatalog.id);
+    
+    // If all catalogs already have instances, don't create any
+    if (usCatalogHasInstance && caCatalogHasInstance && gbCatalogHasInstance) {
+      comboInstancesInitializedRef.current = true;
+      return;
+    }
+
+    // Create 3 combo instances - one for each currency (only if they don't exist)
     const currencyConfigs = [
-      { catalog: usCatalog, masterCombo: usdMasterCombo, currency: "USD" as Currency, country: "US" as Country },
-      { catalog: caCatalog, masterCombo: cadMasterCombo, currency: "CAD" as Currency, country: "CA" as Country },
-      { catalog: gbCatalog, masterCombo: gbpMasterCombo, currency: "GBP" as Currency, country: "GB" as Country },
+      { catalog: usCatalog, masterCombo: usdMasterCombo, currency: "USD" as Currency, country: "US" as Country, hasInstance: usCatalogHasInstance },
+      { catalog: caCatalog, masterCombo: cadMasterCombo, currency: "CAD" as Currency, country: "CA" as Country, hasInstance: caCatalogHasInstance },
+      { catalog: gbCatalog, masterCombo: gbpMasterCombo, currency: "GBP" as Currency, country: "GB" as Country, hasInstance: gbCatalogHasInstance },
     ];
 
     for (let i = 0; i < 3; i++) {
-      const { catalog, masterCombo, currency, country } = currencyConfigs[i];
+      const { catalog, masterCombo, currency, country, hasInstance } = currencyConfigs[i];
+      
+      // Skip if this catalog already has an instance
+      if (hasInstance) continue;
 
       // Get stores for this currency
       const currencyStores = stores.filter(s => s.country === country);
@@ -1375,6 +1410,13 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
               // If localStorage has 3 or more, use that instead and mark as initialized
               if (parsed.length >= 3) {
                 comboInstancesInitializedRef.current = true;
+                // Check if the parsed instances match what we have in state
+                const parsedKeys = new Set(parsed.map((c: ComboInstance) => `${c.catalogId}-${c.displayName}`));
+                const prevKeys = new Set(prev.map(ci => `${ci.catalogId}-${ci.displayName}`));
+                // If they're the same, return prev to avoid unnecessary updates
+                if (parsedKeys.size === prevKeys.size && [...parsedKeys].every(k => prevKeys.has(k))) {
+                  return prev;
+                }
                 return parsed.map((c: Omit<ComboInstance, 'dateModified'> & { dateModified?: string }) => ({
                   ...c,
                   dateModified: c.dateModified ? new Date(c.dateModified) : new Date(),
@@ -1392,19 +1434,26 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
           return prev;
         }
         
-        // Calculate how many we need to add
-        const needed = 3 - prev.length;
-        const toAdd = newComboInstances.slice(0, needed);
-        
-        // Only add if they don't already exist (by display name and catalog to avoid duplicates)
+        // Check if we already have instances for each currency/catalog combination
         const existingKeys = new Set(prev.map(ci => `${ci.catalogId}-${ci.displayName}`));
-        const uniqueToAdd = toAdd.filter(ci => !existingKeys.has(`${ci.catalogId}-${ci.displayName}`));
+        const currencyCatalogs = new Set(prev.map(ci => ci.catalogId));
         
-        if (uniqueToAdd.length > 0) {
+        // Filter out any new instances that would duplicate existing ones
+        const uniqueToAdd = newComboInstances.filter(ci => {
+          const key = `${ci.catalogId}-${ci.displayName}`;
+          // Don't add if we already have this exact combo, or if we already have a combo for this catalog
+          return !existingKeys.has(key) && !currencyCatalogs.has(ci.catalogId);
+        });
+        
+        // Only add up to 3 total
+        const needed = 3 - prev.length;
+        const toAdd = uniqueToAdd.slice(0, needed);
+        
+        if (toAdd.length > 0) {
           comboInstancesInitializedRef.current = true;
         }
         
-        return [...prev, ...uniqueToAdd];
+        return [...prev, ...toAdd];
       });
     }
   }, [catalogs, masterCombos, stores]);
