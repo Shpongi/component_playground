@@ -878,6 +878,28 @@ export default function StoresPage() {
                   </div>
                 );
               })()}
+              {store.isComboInstance && store.comboInstanceId && (() => {
+                const comboStores = getComboInstanceStores(store.comboInstanceId);
+                const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
+                const isBasedOnDefaults = instance?.masterComboId !== null && instance?.customStoreNames === null;
+                
+                return (
+                  <div className="mb-3 p-2 bg-purple-50 border border-purple-200 rounded">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium text-purple-800">
+                        Stores in Combo: <span className="font-bold text-base">{comboStores.length}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] ${
+                        isBasedOnDefaults 
+                          ? "bg-green-100 text-green-800" 
+                          : "bg-orange-100 text-orange-800"
+                      }`}>
+                        {isBasedOnDefaults ? "Based on Defaults" : "Custom"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="flex items-center justify-between mt-3 gap-2">
                 <div className="flex gap-2 flex-1">
                   <button
