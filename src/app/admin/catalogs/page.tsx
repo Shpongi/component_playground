@@ -568,7 +568,7 @@ function TenantCatalogStoresSection({ tenant, catalogId, eventId }: { tenant: Te
                   <div key={`available-store-${tenant.id}-${catalogId}-${store.name}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
                     <span className="font-medium text-gray-700">{store.name}</span>
                     <button
-                      onClick={() => addTenantCatalogStore(tenant.id, catalogId, store.name)}
+                      onClick={() => addTenantCatalogStore(tenant.id, catalogId, eventId, store.name)}
                       className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
                     >
                       Add
@@ -583,7 +583,7 @@ function TenantCatalogStoresSection({ tenant, catalogId, eventId }: { tenant: Te
                       <span className="px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">Combo</span>
                     </div>
                     <button
-                      onClick={() => addTenantCatalogComboInstance(tenant.id, catalogId, comboInstance.id)}
+                      onClick={() => addTenantCatalogComboInstance(tenant.id, catalogId, eventId, comboInstance.id)}
                       className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
                     >
                       Add
