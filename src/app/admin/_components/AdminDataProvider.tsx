@@ -2360,6 +2360,19 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     setMasterCombos(prev => prev.map(combo => 
       combo.id === id ? { ...combo, ...updates, dateModified: new Date() } : combo
     ));
+    
+    // If storeNames are being updated, clear customStoreNames for all combo instances
+    // that are based on this master combo, so they use the new default stores
+    if (updates.storeNames !== undefined) {
+      setComboInstances(prev => prev.map(instance => {
+        // If this instance is based on the updated master combo and has custom stores,
+        // clear the custom stores so it uses the new defaults
+        if (instance.masterComboId === id && instance.customStoreNames !== null) {
+          return { ...instance, customStoreNames: null, dateModified: new Date() };
+        }
+        return instance;
+      }));
+    }
   }
 
   function deleteMasterCombo(id: string) {
