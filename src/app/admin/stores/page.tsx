@@ -900,59 +900,61 @@ export default function StoresPage() {
                   </div>
                 );
               })()}
-              <div className="flex items-center justify-between mt-3 gap-2">
-                <div className="flex gap-2 flex-1">
-                  <button
-                    onClick={() => {
-                      const content = getStoreContent(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
-                      setContentFormData(prev => ({
-                        ...prev,
-                        [store.id]: { ...content }
-                      }));
-                      setContentModalOpen(prev => ({ ...prev, [store.id]: true }));
-                    }}
-                    className="px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 border border-purple-200"
-                  >
-                    Edit T&C & Description
-                  </button>
-                  <button
-                    onClick={() => {
-                      const currentImage = getStoreImage(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
-                      setImageFormData(prev => ({
-                        ...prev,
-                        [store.id]: currentImage || ""
-                      }));
-                      setImageModalOpen(prev => ({ ...prev, [store.id]: true }));
-                    }}
-                    className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 border border-indigo-200"
-                  >
-                    {uploadedImage ? "Update Image" : "Upload Image"}
-                  </button>
-                  {store.isComboInstance && store.comboInstanceId && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex gap-2 flex-1 flex-wrap">
                     <button
                       onClick={() => {
-                        const comboStores = getComboInstanceStores(store.comboInstanceId!);
-                        setComboEditStoreNames(prev => ({
+                        const content = getStoreContent(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+                        setContentFormData(prev => ({
                           ...prev,
-                          [store.comboInstanceId!]: [...comboStores]
+                          [store.id]: { ...content }
                         }));
-                        setComboEditModalOpen(prev => ({ ...prev, [store.comboInstanceId!]: true }));
+                        setContentModalOpen(prev => ({ ...prev, [store.id]: true }));
                       }}
-                      className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded hover:bg-green-100 border border-green-200"
+                      className="px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 border border-purple-200"
                     >
-                      Edit Stores
+                      Edit T&C & Description
                     </button>
-                  )}
+                    <button
+                      onClick={() => {
+                        const currentImage = getStoreImage(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+                        setImageFormData(prev => ({
+                          ...prev,
+                          [store.id]: currentImage || ""
+                        }));
+                        setImageModalOpen(prev => ({ ...prev, [store.id]: true }));
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 border border-indigo-200"
+                    >
+                      {uploadedImage ? "Update Image" : "Upload Image"}
+                    </button>
+                    {store.isComboInstance && store.comboInstanceId && (
+                      <button
+                        onClick={() => {
+                          const comboStores = getComboInstanceStores(store.comboInstanceId!);
+                          setComboEditStoreNames(prev => ({
+                            ...prev,
+                            [store.comboInstanceId!]: [...comboStores]
+                          }));
+                          setComboEditModalOpen(prev => ({ ...prev, [store.comboInstanceId!]: true }));
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded hover:bg-green-100 border border-green-200"
+                      >
+                        Edit Stores
+                      </button>
+                    )}
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={store.isActive}
+                      onChange={() => handleToggleStoreActive(store.id)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={store.isActive}
-                    onChange={() => handleToggleStoreActive(store.id)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
               </div>
             </div>
           );
