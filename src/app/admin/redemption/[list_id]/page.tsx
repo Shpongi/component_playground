@@ -358,9 +358,7 @@ export default function RedemptionListEditPage() {
                         </div>
                         <button
                           onClick={() => {
-                            if (confirm(`Remove ${tenant.name} from this redemption catalog?`)) {
-                              removeTenantFromSwapList(listId, tenant.id);
-                            }
+                            removeTenantFromSwapList(listId, tenant.id);
                           }}
                           className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
                         >
@@ -593,9 +591,7 @@ export default function RedemptionListEditPage() {
                         </div>
                         <button
                           onClick={() => {
-                            if (confirm(`Remove ${tenant.name} from this redemption catalog?`)) {
-                              removeTenantFromSwapList(listId, tenant.id);
-                            }
+                            removeTenantFromSwapList(listId, tenant.id);
                           }}
                           className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
                         >

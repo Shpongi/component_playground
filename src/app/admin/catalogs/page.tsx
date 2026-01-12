@@ -51,9 +51,7 @@ function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: T
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    if (confirm(`Are you sure you want to delete this event? All configurations (discounts, stores, order) for this event will be removed.`)) {
-      deleteTenantCatalogEvent(tenant.id, catalogId, eventId);
-    }
+    deleteTenantCatalogEvent(tenant.id, catalogId, eventId);
   };
   
   const enabledFeaturesCount = [
@@ -64,13 +62,11 @@ function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: T
   ].filter(Boolean).length;
   
   const handleRemoveTenant = () => {
-    if (confirm(`Are you sure you want to remove "${tenant.name}" from Tenant-Specific Features? All customizations will be lost.`)) {
-      // Disable all features to effectively remove the tenant
-      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'discounts', false);
-      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'order', false);
-      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'stores', false);
-      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'forceSupplier', false);
-    }
+    // Disable all features to effectively remove the tenant
+    setTenantCatalogFeatureFlag(tenant.id, catalogId, 'discounts', false);
+    setTenantCatalogFeatureFlag(tenant.id, catalogId, 'order', false);
+    setTenantCatalogFeatureFlag(tenant.id, catalogId, 'stores', false);
+    setTenantCatalogFeatureFlag(tenant.id, catalogId, 'forceSupplier', false);
   };
   
   return (
@@ -935,9 +931,7 @@ export default function CatalogsPage() {
                                             </button>
                                             <button
                                               onClick={() => {
-                                                if (confirm(`Are you sure you want to remove "${comboInstance.displayName}" from this catalog?`)) {
-                                                  deleteComboInstance(comboInstance.id);
-                                                }
+                                                deleteComboInstance(comboInstance.id);
                                               }}
                                               className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
                                             >

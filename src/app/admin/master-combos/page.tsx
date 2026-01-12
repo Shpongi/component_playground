@@ -104,9 +104,7 @@ export default function MasterCombosPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this default combo? This will also delete all combo instances based on it.")) {
-      deleteMasterCombo(id);
-    }
+    deleteMasterCombo(id);
   };
 
   const handleEdit = (combo: MasterCombo) => {
