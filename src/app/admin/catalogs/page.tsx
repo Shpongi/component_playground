@@ -921,20 +921,18 @@ export default function CatalogsPage() {
                                             </span>
                                           </div>
                                           <div className="flex items-center gap-2">
-                                            {canEdit && (
-                                              <button
-                                                onClick={() => {
-                                                  setComboEditStoreNames(prev => ({
-                                                    ...prev,
-                                                    [comboInstance.id]: [...comboStores]
-                                                  }));
-                                                  setComboEditModalOpen(prev => ({ ...prev, [comboInstance.id]: true }));
-                                                }}
-                                                className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                                              >
-                                                Edit Stores
-                                              </button>
-                                            )}
+                                            <button
+                                              onClick={() => {
+                                                setComboEditStoreNames(prev => ({
+                                                  ...prev,
+                                                  [comboInstance.id]: [...comboStores]
+                                                }));
+                                                setComboEditModalOpen(prev => ({ ...prev, [comboInstance.id]: true }));
+                                              }}
+                                              className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                                            >
+                                              Edit Stores
+                                            </button>
                                             <button
                                               onClick={() => {
                                                 if (confirm(`Are you sure you want to remove "${comboInstance.displayName}" from this catalog?`)) {
