@@ -157,8 +157,7 @@ type AdminDataContextValue = {
   getStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => string | null;
   setStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) => void;
   // Tenant notes/descriptions
-  getTenantNotes: (tenantId: string) => string;
-  setTenantNotes: (tenantId: string, notes: string) => void;
+  generateTenantDescription: (tenantId: string) => string;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
   setCatalogFee: (catalogId: string, fee: Fee | null) => void;
   // Redemption/SwapList management
@@ -2978,44 +2977,114 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  // Tenant notes/descriptions state
-  const [tenantNotes, setTenantNotesState] = useState<Record<string, string>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('admin-tenant-notes');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          // If parsing fails, fall through to default
+  // Generate automatic description of tenant configuration
+  function generateTenantDescription(tenantId: string): string {
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return '';
+
+    const activeCatalogId = activeCatalogByTenant[tenantId];
+    if (!activeCatalogId) {
+      return `No active catalog configured for ${tenant.name}.`;
+    }
+
+    const catalog = catalogs.find(c => c.id === activeCatalogId);
+    if (!catalog) return '';
+
+    const selectedEventId = tenantCatalogSelectedEvent[tenantId]?.[activeCatalogId] || 'default';
+    const catalogEvents = tenantCatalogEvents[tenantId]?.[activeCatalogId] || {};
+    const eventData = catalogEvents[selectedEventId] || { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+    const flags = tenantCatalogFeatureFlags[tenantId]?.[activeCatalogId] || {};
+    const forcedSupplier = tenantCatalogForcedSupplier[tenantId]?.[activeCatalogId];
+    
+    const effectiveCatalog = getEffectiveCatalogForTenant(tenantId, activeCatalogId);
+    const comboInstancesForTenant = getComboInstancesForTenant(tenantId, activeCatalogId);
+    
+    const parts: string[] = [];
+    
+    // Catalog info
+    if (catalog.isBranch) {
+      const parentCatalog = catalogs.find(c => c.id === catalog.parentId);
+      parts.push(`Using branch catalog "${catalog.name}" (inherits from "${parentCatalog?.name || 'unknown'}")`);
+    } else {
+      parts.push(`Using base catalog "${catalog.name}"`);
+    }
+    
+    // Event info
+    if (selectedEventId !== 'default') {
+      const eventNames = Object.keys(catalogEvents);
+      const eventName = eventNames.find(eid => eid === selectedEventId);
+      if (eventName) {
+        parts.push(`Active event: "${eventName}"`);
+      }
+    }
+    
+    // Stores feature
+    if (flags.stores) {
+      const storeCount = effectiveCatalog.stores.length;
+      if (storeCount > 0) {
+        parts.push(`Stores feature enabled: ${storeCount} store${storeCount !== 1 ? 's' : ''} visible`);
+        if (storeCount <= 10) {
+          const storeNames = effectiveCatalog.stores.map(s => s.name).join(', ');
+          parts.push(`Visible stores: ${storeNames}`);
+        } else {
+          const firstFew = effectiveCatalog.stores.slice(0, 5).map(s => s.name).join(', ');
+          parts.push(`Visible stores include: ${firstFew}, and ${storeCount - 5} more`);
         }
+      } else {
+        parts.push(`Stores feature enabled: No stores visible`);
+      }
+    } else {
+      const storeCount = effectiveCatalog.stores.length;
+      parts.push(`${storeCount} store${storeCount !== 1 ? 's' : ''} available (all stores from catalog)`);
+    }
+    
+    // Combo instances
+    if (comboInstancesForTenant.length > 0) {
+      parts.push(`${comboInstancesForTenant.length} combo card${comboInstancesForTenant.length !== 1 ? 's' : ''} available`);
+      if (comboInstancesForTenant.length <= 5) {
+        const comboNames = comboInstancesForTenant.map(ci => ci.displayName).join(', ');
+        parts.push(`Combo cards: ${comboNames}`);
+      }
+    } else {
+      parts.push(`No combo cards available`);
+    }
+    
+    // Discounts feature
+    if (flags.discounts) {
+      const discountCount = Object.keys(eventData.discounts || {}).length;
+      if (discountCount > 0) {
+        parts.push(`Discounts feature enabled: ${discountCount} store${discountCount !== 1 ? 's' : ''} have custom discounts`);
+        const discountEntries = Object.entries(eventData.discounts || {}).slice(0, 3);
+        if (discountEntries.length > 0) {
+          const discountList = discountEntries.map(([name, discount]) => `${name} (${discount}%)`).join(', ');
+          if (discountCount > 3) {
+            parts.push(`Discounts include: ${discountList}, and ${discountCount - 3} more`);
+          } else {
+            parts.push(`Discounts: ${discountList}`);
+          }
+        }
+      } else {
+        parts.push(`Discounts feature enabled: No custom discounts configured`);
       }
     }
-    return {};
-  });
-
-  // Save tenant notes to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('admin-tenant-notes', JSON.stringify(tenantNotes));
+    
+    // Order feature
+    if (flags.order && eventData.order && eventData.order.length > 0) {
+      parts.push(`Custom store order enabled: Stores displayed in custom sequence`);
     }
-  }, [tenantNotes]);
-
-  function getTenantNotes(tenantId: string): string {
-    return tenantNotes[tenantId] || '';
-  }
-
-  function setTenantNotes(tenantId: string, notes: string) {
-    setTenantNotesState(prev => {
-      if (!notes.trim()) {
-        const updated = { ...prev };
-        delete updated[tenantId];
-        return updated;
-      }
-      return {
-        ...prev,
-        [tenantId]: notes.trim()
-      };
-    });
+    
+    // Force supplier feature
+    if (flags.forceSupplier && forcedSupplier !== null && forcedSupplier !== undefined) {
+      const forcedStoreCount = effectiveCatalog.stores.length;
+      parts.push(`Force Supplier enabled: Only stores from Supplier ${forcedSupplier} are available (${forcedStoreCount} store${forcedStoreCount !== 1 ? 's' : ''})`);
+    }
+    
+    // If no features are enabled
+    if (!flags.stores && !flags.discounts && !flags.order && !flags.forceSupplier) {
+      parts.push(`No tenant-specific features enabled - using default catalog configuration`);
+    }
+    
+    return parts.join('. ') + '.';
   }
 
   const value: AdminDataContextValue = {
@@ -3103,8 +3172,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     setStoreContent,
     getStoreImage,
     setStoreImage,
-    getTenantNotes,
-    setTenantNotes,
+    generateTenantDescription,
   };
 
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;
