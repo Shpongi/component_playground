@@ -38,6 +38,7 @@ All notable changes to this project will be documented in this file.
 - Added DB Cards summary view in Stores page showing "Total DB Cards" and "Value of Total Cards" with clickable card to view detailed table of Store Name, Qty in DB, and Value.
 - Added image upload/update functionality for each store - users can upload images via URL or file upload, with preview and remove options.
 - Added store count display in Force Supplier section showing how many stores are available from the selected supplier.
+- Added "Based on Defaults" indicator for combo cards showing Yes/No status, and "Edit Stores" option for non-default combos to customize store selection.
 
 ### Changed
 - Changed terminology from "Discount" to "Margin" throughout the stores page.

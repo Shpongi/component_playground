@@ -670,9 +670,11 @@ export default function CatalogsPage() {
     removeStoreFromCatalog, 
     addStoreToCatalog,
     createComboInstance,
+    updateComboInstance,
     getComboInstancesForCatalog,
     deleteComboInstance,
     comboInstances,
+    getComboInstanceStores,
     setStoreDiscount, 
     setStoreCSS, 
     setStoreFee, 
@@ -694,6 +696,8 @@ export default function CatalogsPage() {
   const [storeSettingsOpen, setStoreSettingsOpen] = useState<Record<string, boolean>>({});
   const [selectedTenantToAddFeature, setSelectedTenantToAddFeature] = useState<Record<string, string>>({});
   const [expandedCatalogs, setExpandedCatalogs] = useState<Record<string, boolean>>({});
+  const [comboEditModalOpen, setComboEditModalOpen] = useState<Record<string, boolean>>({});
+  const [comboEditStoreNames, setComboEditStoreNames] = useState<Record<string, string[]>>({});
 
   const toggleCatalogExpansion = (catalogId: string) => {
     setExpandedCatalogs(prev => ({
@@ -898,26 +902,53 @@ export default function CatalogsPage() {
                               <div className="max-h-44 overflow-y-auto border border-gray-200 rounded bg-white p-2">
                                 <div className="space-y-1">
                                   {/* Combo Instances */}
-                                  {catalogComboInstances.map((comboInstance) => (
-                                    <div key={`combo-instance-${catalog.id}-${comboInstance.id}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
-                                      <div className="flex items-center justify-between text-xs">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-medium">{comboInstance.displayName}</span>
-                                          <span className="px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">Combo</span>
+                                  {catalogComboInstances.map((comboInstance) => {
+                                    const isBasedOnDefaults = comboInstance.masterComboId !== null;
+                                    const comboStores = getComboInstanceStores(comboInstance.id);
+                                    return (
+                                      <div key={`combo-instance-${catalog.id}-${comboInstance.id}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
+                                        <div className="flex items-center justify-between text-xs">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-medium">{comboInstance.displayName}</span>
+                                            <span className="px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">Combo</span>
+                                            <span className={`px-1 py-0.5 rounded text-[10px] ${
+                                              isBasedOnDefaults 
+                                                ? "bg-green-100 text-green-800" 
+                                                : "bg-orange-100 text-orange-800"
+                                            }`}>
+                                              Based on Defaults: {isBasedOnDefaults ? "Yes" : "No"}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {!isBasedOnDefaults && (
+                                              <button
+                                                onClick={() => {
+                                                  setComboEditStoreNames(prev => ({
+                                                    ...prev,
+                                                    [comboInstance.id]: [...comboStores]
+                                                  }));
+                                                  setComboEditModalOpen(prev => ({ ...prev, [comboInstance.id]: true }));
+                                                }}
+                                                className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                                              >
+                                                Edit Stores
+                                              </button>
+                                            )}
+                                            <button
+                                              onClick={() => {
+                                                if (confirm(`Are you sure you want to remove "${comboInstance.displayName}" from this catalog?`)) {
+                                                  deleteComboInstance(comboInstance.id);
+                                                }
+                                              }}
+                                              className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
                                         </div>
-                                        <button
-                                          onClick={() => {
-                                            if (confirm(`Are you sure you want to remove "${comboInstance.displayName}" from this catalog?`)) {
-                                              deleteComboInstance(comboInstance.id);
-                                            }
-                                          }}
-                                          className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
-                                        >
-                                          Remove
-                                        </button>
                                       </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                   {/* Regular stores */}
                                   {(effectiveCatalogs[catalog.id]?.stores || []).map((store, index) => {
                                     const effective = effectiveCatalogs[catalog.id];
@@ -1272,6 +1303,103 @@ export default function CatalogsPage() {
           );
         })}
       </div>
+
+      {/* Edit Combo Stores Modal */}
+      {catalogList.flatMap(catalog => {
+        const catalogComboInstances = getComboInstancesForCatalog(catalog.id);
+        return catalogComboInstances
+          .filter(comboInstance => comboEditModalOpen[comboInstance.id])
+          .map(comboInstance => {
+            
+            const formData = comboEditStoreNames[comboInstance.id] || [];
+            const availableStores = stores.filter(s => s.country === catalog.country && isStoreActive(s.name, s.country));
+            
+            return (
+              <div key={`combo-edit-modal-${comboInstance.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold">Edit Stores - {comboInstance.displayName}</h2>
+                    <button
+                      onClick={() => setComboEditModalOpen(prev => ({ ...prev, [comboInstance.id]: false }))}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Select stores to include in this combo. This combo is not based on defaults, so you can customize the store selection.
+                    </p>
+                    <div className="text-xs text-gray-500 mb-3">
+                      Selected: {formData.length} store{formData.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+
+                  <div className="border border-gray-200 rounded p-3 max-h-96 overflow-y-auto bg-gray-50">
+                    <div className="space-y-2">
+                      {availableStores.map(store => {
+                        const isSelected = formData.includes(store.name);
+                        return (
+                          <label key={store.name} className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setComboEditStoreNames(prev => ({
+                                    ...prev,
+                                    [comboInstance.id]: [...(prev[comboInstance.id] || []), store.name]
+                                  }));
+                                } else {
+                                  setComboEditStoreNames(prev => ({
+                                    ...prev,
+                                    [comboInstance.id]: (prev[comboInstance.id] || []).filter(n => n !== store.name)
+                                  }));
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm text-gray-700">{store.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setComboEditModalOpen(prev => ({ ...prev, [comboInstance.id]: false }));
+                        setComboEditStoreNames(prev => {
+                          const updated = { ...prev };
+                          delete updated[comboInstance.id];
+                          return updated;
+                        });
+                      }}
+                      className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        updateComboInstance(comboInstance.id, {
+                          customStoreNames: formData.length > 0 ? formData : null
+                        });
+                        setComboEditModalOpen(prev => ({ ...prev, [comboInstance.id]: false }));
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          });
+      })}
 
     </section>
   );
