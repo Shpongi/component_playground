@@ -903,7 +903,8 @@ export default function CatalogsPage() {
                                 <div className="space-y-1">
                                   {/* Combo Instances */}
                                   {catalogComboInstances.map((comboInstance) => {
-                                    const isBasedOnDefaults = comboInstance.masterComboId !== null;
+                                    const isBasedOnDefaults = comboInstance.masterComboId !== null && comboInstance.customStoreNames === null;
+                                    const canEdit = comboInstance.masterComboId === null || comboInstance.customStoreNames !== null;
                                     const comboStores = getComboInstanceStores(comboInstance.id);
                                     return (
                                       <div key={`combo-instance-${catalog.id}-${comboInstance.id}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
@@ -920,7 +921,7 @@ export default function CatalogsPage() {
                                             </span>
                                           </div>
                                           <div className="flex items-center gap-2">
-                                            {!isBasedOnDefaults && (
+                                            {canEdit && (
                                               <button
                                                 onClick={() => {
                                                   setComboEditStoreNames(prev => ({
@@ -1331,7 +1332,10 @@ export default function CatalogsPage() {
 
                   <div className="mb-4">
                     <p className="text-sm text-gray-600 mb-2">
-                      Select stores to include in this combo. This combo is not based on defaults, so you can customize the store selection.
+                      {comboInstance.masterComboId 
+                        ? "Select stores to override the default combo. Custom stores will replace the default selection."
+                        : "Select stores to include in this combo. This combo is not based on defaults, so you can customize the store selection."
+                      }
                     </p>
                     <div className="text-xs text-gray-500 mb-3">
                       Selected: {formData.length} store{formData.length !== 1 ? 's' : ''}
@@ -1385,8 +1389,10 @@ export default function CatalogsPage() {
                     </button>
                     <button
                       onClick={() => {
+                        // If combo has masterComboId but we're setting custom stores, set customStoreNames to override
+                        // If combo has no masterComboId, set customStoreNames as normal
                         updateComboInstance(comboInstance.id, {
-                          customStoreNames: formData.length > 0 ? formData : null
+                          customStoreNames: formData.length > 0 ? formData : (comboInstance.masterComboId ? null : [])
                         });
                         setComboEditModalOpen(prev => ({ ...prev, [comboInstance.id]: false }));
                       }}
