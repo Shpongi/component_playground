@@ -290,43 +290,40 @@ export default function TenantsPage() {
                         )}
                       </div>
                     )}
-                    {/* Auto-generated Tenant Configuration Description */}
-                    <div className="mt-3">
-                      {expandedSummaryTenantId === tenant.id ? (
-                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1">
-                              <p className="text-xs font-medium text-blue-900 mb-1">Configuration Summary:</p>
-                              <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
-                                {generateTenantDescription(tenant.id)}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => setExpandedSummaryTenantId(null)}
-                              className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                            >
-                              Hide
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setExpandedSummaryTenantId(tenant.id)}
-                          className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium border border-blue-300"
-                        >
-                          Configuration Summary
-                        </button>
-                      )}
-                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col items-end gap-2">
                     <button
                       onClick={() => setPreviewTenantId(tenant.id)}
                       className="btn btn-success btn-xs"
                     >
                       Preview
                     </button>
+                    {expandedSummaryTenantId === tenant.id ? (
+                      <button
+                        onClick={() => setExpandedSummaryTenantId(null)}
+                        className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium border border-blue-300"
+                      >
+                        Hide Summary
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setExpandedSummaryTenantId(tenant.id)}
+                        className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium border border-blue-300"
+                      >
+                        Configuration Summary
+                      </button>
+                    )}
                   </div>
+                </div>
+                {/* Configuration Summary Display */}
+                {expandedSummaryTenantId === tenant.id && (
+                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
+                    <p className="text-xs font-medium text-blue-900 mb-1">Configuration Summary:</p>
+                    <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
+                      {generateTenantDescription(tenant.id)}
+                    </p>
+                  </div>
+                )}
                 </div>
                 {/* Branch catalog info */}
                 {active?.isBranch && (
