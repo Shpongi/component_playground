@@ -291,20 +291,6 @@ function TenantCatalogDiscountsSection({ tenant, catalogId, eventId, stores }: {
     .filter(s => !catalogDiscounts[s.name] || catalogDiscounts[s.name] === 0)
     .filter(s => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
   
-  const handleCreateEvent = () => {
-    if (newEventName.trim()) {
-      createTenantCatalogEvent(tenant.id, catalogId, newEventName.trim());
-      setNewEventName("");
-      setShowCreateEvent(false);
-    }
-  };
-
-  const handleDeleteEvent = (eventId: string) => {
-    if (confirm(`Are you sure you want to delete this event? All discounts for this event will be removed.`)) {
-      deleteTenantCatalogEvent(tenant.id, catalogId, eventId);
-    }
-  };
-  
   return (
     <div className="expandable-section mt-2">
       <button onClick={() => setExpanded(!expanded)} className="expandable-header">
