@@ -602,10 +602,26 @@ function TenantCatalogStoresSection({ tenant, catalogId, eventId }: { tenant: Te
 function TenantCatalogForceSupplierSection({ tenant, catalogId }: { tenant: Tenant; catalogId: string }) {
   const {
     tenantCatalogForcedSupplier,
-    setTenantCatalogForcedSupplier
+    setTenantCatalogForcedSupplier,
+    getEffectiveCatalog,
+    storeSuppliers,
+    isStoreActive
   } = useAdminData();
   
   const forcedSupplier = tenantCatalogForcedSupplier[tenant.id]?.[catalogId] ?? null;
+  const catalog = getEffectiveCatalog(catalogId);
+  
+  // Count stores available from the forced supplier
+  const availableStoresCount = forcedSupplier !== null 
+    ? catalog.stores.filter(store => {
+        if (store.country !== tenant.country) return false;
+        if (!isStoreActive(store.name, store.country)) return false;
+        const storeKey = `${store.country}-${store.name}`;
+        const supplierData = storeSuppliers[storeKey];
+        const offeringSuppliers = supplierData?.offeringSuppliers || [1, 2, 3, 4, 5];
+        return offeringSuppliers.includes(forcedSupplier);
+      }).length
+    : 0;
   
   return (
     <div className="expandable-section mt-2">
@@ -637,8 +653,16 @@ function TenantCatalogForceSupplierSection({ tenant, catalogId }: { tenant: Tena
           </select>
         </div>
         {forcedSupplier !== null && (
-          <div className="mt-2 text-xs text-blue-700">
-            Tenant will only be able to select stores from <strong>Supplier {forcedSupplier}</strong> selected.
+          <div className="mt-3 p-2 bg-white border border-blue-300 rounded">
+            <div className="text-xs text-blue-800 mb-1">
+              <strong>Supplier {forcedSupplier}</strong> is forced for this tenant.
+            </div>
+            <div className="text-xs font-semibold text-blue-900">
+              Available Stores: <span className="text-base">{availableStoresCount}</span>
+            </div>
+            <div className="text-xs text-blue-600 mt-1">
+              Tenant will only be able to select from these {availableStoresCount} stores.
+            </div>
           </div>
         )}
       </div>

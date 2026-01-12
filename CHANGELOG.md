@@ -37,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Create Store popup now supports setting supplier margins, selecting primary (selected) supplier, and selecting secondary supplier for regular stores.
 - Added DB Cards summary view in Stores page showing "Total DB Cards" and "Value of Total Cards" with clickable card to view detailed table of Store Name, Qty in DB, and Value.
 - Added image upload/update functionality for each store - users can upload images via URL or file upload, with preview and remove options.
+- Added store count display in Force Supplier section showing how many stores are available from the selected supplier.
 
 ### Changed
 - Changed terminology from "Discount" to "Margin" throughout the stores page.
