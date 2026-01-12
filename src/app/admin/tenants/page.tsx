@@ -18,9 +18,13 @@ export default function TenantsPage() {
     getComboInstanceStores,
     getMasterCombo,
     stores,
+    getTenantNotes,
+    setTenantNotes,
   } = useAdminData();
   const [previewTenantId, setPreviewTenantId] = useState<string | null>(null);
   const [previewCurrency, setPreviewCurrency] = useState<"USD" | "CAD" | "GBP" | null>(null);
+  const [editingNotesTenantId, setEditingNotesTenantId] = useState<string | null>(null);
+  const [notesFormData, setNotesFormData] = useState<Record<string, string>>({});
   const catalogsById = Object.fromEntries(catalogs.map((c) => [c.id, c]));
   
   // Find base catalogs (Default USD, Default CAD, and Default GBP)
@@ -288,6 +292,70 @@ export default function TenantsPage() {
                         )}
                       </div>
                     )}
+                    {/* Tenant Notes */}
+                    <div className="mt-3">
+                      {editingNotesTenantId === tenant.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={notesFormData[tenant.id] || getTenantNotes(tenant.id)}
+                            onChange={(e) => setNotesFormData(prev => ({ ...prev, [tenant.id]: e.target.value }))}
+                            placeholder="Add notes about what's active/visible for this tenant..."
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            rows={3}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setTenantNotes(tenant.id, notesFormData[tenant.id] || '');
+                                setEditingNotesTenantId(null);
+                                setNotesFormData(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[tenant.id];
+                                  return updated;
+                                });
+                              }}
+                              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingNotesTenantId(null);
+                                setNotesFormData(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[tenant.id];
+                                  return updated;
+                                });
+                              }}
+                              className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1">
+                            {getTenantNotes(tenant.id) ? (
+                              <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 whitespace-pre-wrap">
+                                {getTenantNotes(tenant.id)}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-400 italic">No notes added</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => {
+                              setEditingNotesTenantId(tenant.id);
+                              setNotesFormData(prev => ({ ...prev, [tenant.id]: getTenantNotes(tenant.id) }));
+                            }}
+                            className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 font-medium"
+                          >
+                            {getTenantNotes(tenant.id) ? 'Edit Notes' : 'Add Notes'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button

@@ -156,6 +156,9 @@ type AdminDataContextValue = {
   // Store image management
   getStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => string | null;
   setStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) => void;
+  // Tenant notes/descriptions
+  getTenantNotes: (tenantId: string) => string;
+  setTenantNotes: (tenantId: string, notes: string) => void;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
   setCatalogFee: (catalogId: string, fee: Fee | null) => void;
   // Redemption/SwapList management
@@ -2975,6 +2978,46 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  // Tenant notes/descriptions state
+  const [tenantNotes, setTenantNotesState] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-notes');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save tenant notes to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-notes', JSON.stringify(tenantNotes));
+    }
+  }, [tenantNotes]);
+
+  function getTenantNotes(tenantId: string): string {
+    return tenantNotes[tenantId] || '';
+  }
+
+  function setTenantNotes(tenantId: string, notes: string) {
+    setTenantNotesState(prev => {
+      if (!notes.trim()) {
+        const updated = { ...prev };
+        delete updated[tenantId];
+        return updated;
+      }
+      return {
+        ...prev,
+        [tenantId]: notes.trim()
+      };
+    });
+  }
+
   const value: AdminDataContextValue = {
     tenants,
     stores,
@@ -3060,6 +3103,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     setStoreContent,
     getStoreImage,
     setStoreImage,
+    getTenantNotes,
+    setTenantNotes,
   };
 
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;
