@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { createContext, useContext, useMemo, useState, useEffect, useRef } from "react";
 
 export type Country = "US" | "CA" | "GB";
 export type Currency = "USD" | "CAD" | "GBP";
@@ -1126,6 +1126,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
 
   // Combo Instances state - initialize empty, load from localStorage in useEffect
   const [comboInstances, setComboInstances] = useState<ComboInstance[]>([]);
+  const comboInstancesInitializedRef = useRef(false);
 
   // Legacy combos state - initialize empty, load from localStorage in useEffect
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -1293,23 +1294,32 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (catalogs.length === 0 || masterCombos.length === 0 || stores.length === 0) return;
     
-    // Check if we already have combo instances (either in state or localStorage)
-    // Only initialize if we have fewer than 10 combo instances
-    if (comboInstances.length >= 10) return;
-    
-    // Also check localStorage to avoid reinitializing after a refresh
+    // Check localStorage first to avoid reinitializing after a refresh
     if (typeof window !== 'undefined') {
       const savedComboInstances = localStorage.getItem('admin-combo-instances');
       if (savedComboInstances) {
         try {
           const parsed = JSON.parse(savedComboInstances);
-          // If we already have 10 or more combo instances saved, don't reinitialize
-          if (parsed.length >= 10) return;
+          // If we already have 10 or more combo instances saved, mark as initialized and don't reinitialize
+          if (parsed.length >= 10) {
+            comboInstancesInitializedRef.current = true;
+            return;
+          }
         } catch {
           // If parsing fails, continue with initialization
         }
       }
     }
+    
+    // Check if we already have combo instances in state
+    // Only initialize if we have fewer than 10 combo instances
+    if (comboInstances.length >= 10) {
+      comboInstancesInitializedRef.current = true;
+      return;
+    }
+    
+    // If we've already attempted initialization in this session, don't do it again
+    if (comboInstancesInitializedRef.current) return;
 
     // Get base catalogs (one per currency)
     const usCatalog = catalogs.find(c => c.name === "Default USD");
@@ -1388,16 +1398,43 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
 
     if (newComboInstances.length > 0) {
       setComboInstances(prev => {
+        // Double-check localStorage to avoid duplicates on reload
+        if (typeof window !== 'undefined') {
+          const savedComboInstances = localStorage.getItem('admin-combo-instances');
+          if (savedComboInstances) {
+            try {
+              const parsed = JSON.parse(savedComboInstances);
+              // If localStorage has 10 or more, use that instead and mark as initialized
+              if (parsed.length >= 10) {
+                comboInstancesInitializedRef.current = true;
+                return parsed.map((c: Omit<ComboInstance, 'dateModified'> & { dateModified?: string }) => ({
+                  ...c,
+                  dateModified: c.dateModified ? new Date(c.dateModified) : new Date(),
+                }));
+              }
+            } catch {
+              // If parsing fails, continue with current logic
+            }
+          }
+        }
+        
         // Only add if we have fewer than 10 total
-        if (prev.length >= 10) return prev;
+        if (prev.length >= 10) {
+          comboInstancesInitializedRef.current = true;
+          return prev;
+        }
         
         // Calculate how many we need to add
         const needed = 10 - prev.length;
         const toAdd = newComboInstances.slice(0, needed);
         
-        // Only add if they don't already exist (by display name to avoid duplicates)
-        const existingNames = new Set(prev.map(ci => ci.displayName));
-        const uniqueToAdd = toAdd.filter(ci => !existingNames.has(ci.displayName));
+        // Only add if they don't already exist (by display name and catalog to avoid duplicates)
+        const existingKeys = new Set(prev.map(ci => `${ci.catalogId}-${ci.displayName}`));
+        const uniqueToAdd = toAdd.filter(ci => !existingKeys.has(`${ci.catalogId}-${ci.displayName}`));
+        
+        if (uniqueToAdd.length > 0) {
+          comboInstancesInitializedRef.current = true;
+        }
         
         return [...prev, ...uniqueToAdd];
       });
