@@ -1420,10 +1420,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
               if (parsed.length >= 10) {
                 comboInstancesInitializedRef.current = true;
                 // Check if the parsed instances match what we have in state
-                const parsedKeys = new Set(parsed.map((c: ComboInstance) => `${c.catalogId}-${c.displayName}`));
+                const parsedKeys = new Set(parsed.map((c: Omit<ComboInstance, 'dateModified'> & { dateModified?: string }) => `${c.catalogId}-${c.displayName}`));
                 const prevKeys = new Set(prev.map(ci => `${ci.catalogId}-${ci.displayName}`));
                 // If they're the same, return prev to avoid unnecessary updates
-                if (parsedKeys.size === prevKeys.size && [...parsedKeys].every(k => prevKeys.has(k))) {
+                if (parsedKeys.size === prevKeys.size && Array.from(parsedKeys).every((k: string) => prevKeys.has(k))) {
                   return prev;
                 }
                 return parsed.map((c: Omit<ComboInstance, 'dateModified'> & { dateModified?: string }) => ({
