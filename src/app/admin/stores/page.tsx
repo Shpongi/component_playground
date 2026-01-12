@@ -47,21 +47,27 @@ function generateStores(): Store[] {
   
   // 110 US stores
   for (let i = 0; i < 110; i++) {
+    const brandName = topUSBrands[i % topUSBrands.length];
+    const storeType: "Close" | "Open" | "Combo" = brandName.toLowerCase().includes("visa") ? "Open" : "Close";
     stores.push({
       id: `us-${i + 1}`,
-      name: topUSBrands[i % topUSBrands.length],
+      name: brandName,
       country: "US",
       isActive: true,
+      storeType,
     });
   }
   
   // 40 UK stores
   for (let i = 0; i < 40; i++) {
+    const brandName = topUKBrands[i % topUKBrands.length];
+    const storeType: "Close" | "Open" | "Combo" = brandName.toLowerCase().includes("visa") ? "Open" : "Close";
     stores.push({
       id: `gb-${i + 1}`,
-      name: topUKBrands[i % topUKBrands.length],
+      name: brandName,
       country: "GB",
       isActive: true,
+      storeType,
     });
   }
   
