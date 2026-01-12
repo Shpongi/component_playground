@@ -22,6 +22,7 @@ export default function TenantsPage() {
   } = useAdminData();
   const [previewTenantId, setPreviewTenantId] = useState<string | null>(null);
   const [previewCurrency, setPreviewCurrency] = useState<"USD" | "CAD" | "GBP" | null>(null);
+  const [expandedSummaryTenantId, setExpandedSummaryTenantId] = useState<string | null>(null);
   const catalogsById = Object.fromEntries(catalogs.map((c) => [c.id, c]));
   
   // Find base catalogs (Default USD, Default CAD, and Default GBP)
@@ -291,16 +292,31 @@ export default function TenantsPage() {
                     )}
                     {/* Auto-generated Tenant Configuration Description */}
                     <div className="mt-3">
-                      <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-blue-900 mb-1">Configuration Summary:</p>
-                            <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
-                              {generateTenantDescription(tenant.id)}
-                            </p>
+                      {expandedSummaryTenantId === tenant.id ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1">
+                              <p className="text-xs font-medium text-blue-900 mb-1">Configuration Summary:</p>
+                              <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
+                                {generateTenantDescription(tenant.id)}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setExpandedSummaryTenantId(null)}
+                              className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                              Hide
+                            </button>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <button
+                          onClick={() => setExpandedSummaryTenantId(tenant.id)}
+                          className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium border border-blue-300"
+                        >
+                          Configuration Summary
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
