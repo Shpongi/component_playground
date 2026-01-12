@@ -2484,11 +2484,17 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   function getComboInstancesForTenant(tenantId: string, catalogId: string): ComboInstance[] {
     const allInstances = getComboInstancesForCatalog(catalogId);
     const flags = tenantCatalogFeatureFlags[tenantId]?.[catalogId] || {};
-    const tenantStores = tenantCatalogStores[tenantId]?.[catalogId];
     
-    // If stores feature is enabled, filter to only tenant-specific combo instances
-    if (flags.stores && tenantStores) {
-      return allInstances.filter(instance => tenantStores.comboInstances.includes(instance.id));
+    // If stores feature is enabled, use event-based structure to filter combo instances
+    if (flags.stores) {
+      const selectedEventId = tenantCatalogSelectedEvent[tenantId]?.[catalogId] || 'default';
+      const catalogEvents = tenantCatalogEvents[tenantId]?.[catalogId] || {};
+      const eventData = catalogEvents[selectedEventId] || { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+      
+      // Filter to only tenant-specific combo instances from the event
+      if (eventData.stores && eventData.stores.comboInstances) {
+        return allInstances.filter(instance => eventData.stores.comboInstances.includes(instance.id));
+      }
     }
     
     // Otherwise, return all combo instances for the catalog
