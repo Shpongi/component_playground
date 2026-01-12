@@ -119,15 +119,43 @@ type AdminDataContextValue = {
   getTenantsForCatalog: (catalogId: string) => Tenant[];
   addTenantToCatalog: (catalogId: string, tenantId: string) => void;
   removeTenantFromCatalog: (catalogId: string, tenantId: string) => void;
-  setTenantCatalogStoreDiscount: (tenantId: string, catalogId: string, storeName: string, discount: number) => void;
-  tenantCatalogStoreDiscounts: Record<string, Record<string, Record<string, number>>>;
+  // Events wrap all features (discounts, stores, order)
+  tenantCatalogEvents: Record<string, Record<string, Record<string, {
+    discounts: Record<string, number>; // storeName -> discount
+    stores: { stores: string[]; comboInstances: string[] };
+    order: string[];
+  }>>>; // tenantId -> catalogId -> eventId -> { discounts, stores, order }
+  tenantCatalogSelectedEvent: Record<string, Record<string, string>>; // tenantId -> catalogId -> eventId
+  setTenantCatalogSelectedEvent: (tenantId: string, catalogId: string, eventId: string) => void;
+  createTenantCatalogEvent: (tenantId: string, catalogId: string, eventName: string) => string;
+  deleteTenantCatalogEvent: (tenantId: string, catalogId: string, eventId: string) => void;
+  getTenantCatalogEvents: (tenantId: string, catalogId: string) => Array<{ id: string; name: string }>;
+  // Event-based feature functions
+  setTenantCatalogStoreDiscount: (tenantId: string, catalogId: string, eventId: string, storeName: string, discount: number) => void;
+  updateTenantCatalogStoreOrder: (tenantId: string, catalogId: string, eventId: string, storeOrder: string[]) => void;
+  addTenantCatalogStore: (tenantId: string, catalogId: string, eventId: string, storeName: string) => void;
+  removeTenantCatalogStore: (tenantId: string, catalogId: string, eventId: string, storeName: string) => void;
+  addTenantCatalogComboInstance: (tenantId: string, catalogId: string, eventId: string, comboInstanceId: string) => void;
+  removeTenantCatalogComboInstance: (tenantId: string, catalogId: string, eventId: string, comboInstanceId: string) => void;
+  // Legacy/global features (not event-based)
   setTenantCatalogStoreVisibility: (tenantId: string, catalogId: string, storeName: string, hidden: boolean) => void;
   tenantCatalogHiddenStores: Record<string, Record<string, Set<string>>>;
-  updateTenantCatalogStoreOrder: (tenantId: string, catalogId: string, storeOrder: string[]) => void;
-  tenantCatalogStoreOrder: Record<string, Record<string, string[]>>;
-  tenantCatalogFeatureFlags: Record<string, Record<string, { discounts?: boolean; visibility?: boolean; order?: boolean }>>;
-  setTenantCatalogFeatureFlag: (tenantId: string, catalogId: string, feature: 'discounts' | 'visibility' | 'order', enabled: boolean) => void;
+  tenantCatalogFeatureFlags: Record<string, Record<string, { discounts?: boolean; visibility?: boolean; order?: boolean; stores?: boolean; forceSupplier?: boolean }>>;
+  setTenantCatalogFeatureFlag: (tenantId: string, catalogId: string, feature: 'discounts' | 'visibility' | 'order' | 'stores' | 'forceSupplier', enabled: boolean) => void;
+  tenantCatalogForcedSupplier: Record<string, Record<string, number | null>>; // tenantId -> catalogId -> supplierId
+  setTenantCatalogForcedSupplier: (tenantId: string, catalogId: string, supplierId: number | null) => void;
   moveStoreInCatalog: (catalogId: string, storeName: string, direction: 'up' | 'down') => void;
+  // Supplier management for stores
+  storeSuppliers: Record<string, { selectedSupplier: number | null; secondarySupplier: number | null; discounts: Record<number, number>; offeringSuppliers: number[] }>; // storeKey -> { selectedSupplier, secondarySupplier, discounts, offeringSuppliers }
+  setStoreSupplierDiscount: (storeName: string, country: Country, supplierId: number, discount: number) => void;
+  setStoreSelectedSupplier: (storeName: string, country: Country, supplierId: number | null) => void;
+  setStoreSecondarySupplier: (storeName: string, country: Country, supplierId: number | null) => void;
+  // Store content management (Description & T&C)
+  getStoreContent: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => { description: string; termsAndConditions: string };
+  setStoreContent: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, content: { description: string; termsAndConditions: string }) => void;
+  // Store image management
+  getStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => string | null;
+  setStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) => void;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
   setCatalogFee: (catalogId: string, fee: Fee | null) => void;
   // Redemption/SwapList management
@@ -164,6 +192,7 @@ type AdminDataContextValue = {
   deleteComboInstance: (id: string) => void;
   getComboInstance: (id: string) => ComboInstance | undefined;
   getComboInstancesForCatalog: (catalogId: string) => ComboInstance[];
+  getComboInstancesForTenant: (tenantId: string, catalogId: string) => ComboInstance[];
   getComboInstanceStores: (instanceId: string) => string[];
   // Legacy combo management (for backward compatibility)
   combos: Combo[];
@@ -351,52 +380,34 @@ function buildFixedCountCatalogs(stores: Store[], country: Country, count: numbe
 
 export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   const tenants = useMemo<Tenant[]>(() => {
-    const companyNames = [
-      // US Companies
-      "HappyTenant1", "NG Tenant1", "Global Tropper", "Innovation Labs", "Premier Services",
-      "Strategic Partners", "Elite Enterprises", "Advanced Systems", "Prime Technologies", "Excellence Group",
-      "Dynamic Solutions", "Progressive Industries", "Superior Services", "Leading Edge Corp", "Peak Performance",
-      "Summit Ventures", "Pinnacle Group", "Apex Solutions", "Vertex Technologies", "Zenith Enterprises",
-      "Nexus Corporation", "Fusion Systems", "Catalyst Group", "Momentum Inc", "Velocity Solutions",
-      "Quantum Technologies", "Infinity Corp", "Genesis Industries", "Phoenix Enterprises", "Titan Group",
-      "Meridian Solutions", "Horizon Technologies", "Frontier Corp", "Pioneer Systems", "Vanguard Group",
-      "Legacy Enterprises", "Heritage Corp", "Tradition Industries", "Classic Solutions", "Timeless Group",
-      "Modern Systems", "Contemporary Corp", "Current Technologies", "Present Solutions", "Today's Group",
-      "Future Enterprises", "NextGen Corp", "Tomorrow Industries", "Forward Systems", "Ahead Solutions",
-      
-      // Canadian Companies
-      "Maple Leaf Corp", "Northern Lights Inc", "True North Solutions", "Canadian Heritage Group", "Polaris Industries",
-      "Aurora Technologies", "Boreal Systems", "Tundra Enterprises", "Glacier Corp", "Timber Solutions",
-      "Cedar Group", "Spruce Industries", "Pine Technologies", "Birch Systems", "Oak Enterprises",
-      "Hudson Bay Corp", "Great Lakes Group", "Rocky Mountain Inc", "Prairie Solutions", "Atlantic Technologies",
-      "Pacific Systems", "Arctic Enterprises", "Subarctic Corp", "Continental Group", "Territorial Industries",
-      "Provincial Solutions", "Federal Technologies", "National Systems", "Regional Corp", "Local Enterprises",
-      "Community Group", "Municipal Industries", "Urban Solutions", "Rural Technologies", "Metropolitan Corp",
-      "Downtown Enterprises", "Uptown Group", "Midtown Industries", "Suburban Solutions", "Countryside Technologies",
-      "Wilderness Corp", "Frontier Group", "Pioneer Industries", "Settlement Solutions", "Colonial Technologies",
-      "Heritage Corp", "Traditional Group", "Historic Industries", "Classic Solutions", "Vintage Technologies",
-      "Modern Systems", "Contemporary Corp", "Current Industries", "Present Solutions", "Today's Group",
-      "Future Enterprises", "NextGen Corp", "Tomorrow Industries", "Forward Systems", "Ahead Solutions",
-      
-      // British Companies
-      "Royal Enterprises", "Crown Technologies", "Union Systems", "Commonwealth Corp", "Empire Solutions",
-      "Victory Technologies", "Liberty Industries", "Freedom Systems", "Independence Corp", "Sovereign Solutions",
-      "Monarch Technologies", "Regal Industries", "Majestic Systems", "Noble Corp", "Aristocratic Solutions",
-      "Gentleman Technologies", "Lady Industries", "Duke Systems", "Earl Corp", "Baron Solutions",
-      "Knight Technologies", "Squire Industries", "Page Systems", "Yeoman Corp", "Peasant Solutions",
-      "Merchant Technologies", "Guild Industries", "Guildhall Systems", "Market Corp", "Fair Solutions",
-      "Trading Technologies", "Commerce Industries", "Business Systems", "Enterprise Corp", "Company Solutions",
-      "Firm Technologies", "Partnership Industries", "Corporation Systems", "Limited Corp", "Plc Solutions",
-      "Ltd Technologies", "Inc Industries", "Co Systems", "Group Corp", "Holdings Solutions",
-      "Trust Technologies", "Foundation Industries", "Charity Systems", "Society Corp", "Club Solutions"
-    ];
+    const tenantList: Tenant[] = [];
     
-    return Array.from({ length: 150 }, (_, index) => ({
-      id: `tenant-${index + 1}`,
-      name: companyNames[index],
-      // First 3 tenants are US, then continue with pattern
-      country: index < 3 ? "US" : (index - 3) % 3 === 0 ? "US" : (index - 3) % 3 === 1 ? "CA" : "GB",
-    }));
+    // Create 10 NG tenants
+    for (let i = 1; i <= 10; i++) {
+      tenantList.push({
+        id: `tenant-ng-${i}`,
+        name: `NG Tenant${i}`,
+        country: "US", // Default country, but they support all currencies
+      });
+    }
+    
+    // Create 1 Global Tropper
+    tenantList.push({
+      id: `tenant-global-tropper`,
+      name: "Global Tropper",
+      country: "US", // Default country, but supports all currencies
+    });
+    
+    // Create 50 HappyTenants
+    for (let i = 1; i <= 50; i++) {
+      tenantList.push({
+        id: `tenant-happy-${i}`,
+        name: `HappyTenant${i}`,
+        country: "US", // Default country, but they support all currencies
+      });
+    }
+    
+    return tenantList;
   }, []);
 
   const stores = useMemo<Store[]>(() => {
@@ -543,23 +554,16 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     const caBaseCatalog = initialCatalogs.find(c => c.name === "Default CAD");
     const gbBaseCatalog = initialCatalogs.find(c => c.name === "Default GBP");
     
-    // First 3 tenants are assigned to all three base catalogs
-    tenants.forEach((t, index) => {
-      if (index < 3 && usBaseCatalog && caBaseCatalog && gbBaseCatalog) {
+    // All tenants support all currencies - assign all three base catalogs to each tenant
+    tenants.forEach((t) => {
+      if (usBaseCatalog && caBaseCatalog && gbBaseCatalog) {
         assignments[t.id] = [usBaseCatalog.id, caBaseCatalog.id, gbBaseCatalog.id];
-      } else {
-        // Other tenants are assigned to their country's catalog
-        const defaultCatalog = t.country === "US" ? usBaseCatalog : 
-                              t.country === "CA" ? caBaseCatalog : gbBaseCatalog;
-        if (defaultCatalog) {
-          assignments[t.id] = [defaultCatalog.id];
-        }
       }
     });
     return assignments;
   });
 
-  // Ensure first 3 tenants always have all three base catalogs assigned
+  // Ensure all tenants always have all three base catalogs assigned (all support all currencies)
   useEffect(() => {
     const usBaseCatalog = catalogs.find(c => c.name === "Default USD");
     const caBaseCatalog = catalogs.find(c => c.name === "Default CAD");
@@ -570,8 +574,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         let updated = false;
         const newAssignments = { ...prev };
         
-        // Ensure first 3 tenants have all three base catalogs
-        tenants.slice(0, 3).forEach(t => {
+        // Ensure all tenants have all three base catalogs
+        tenants.forEach(t => {
           const current = newAssignments[t.id] || [];
           const required = [usBaseCatalog.id, caBaseCatalog.id, gbBaseCatalog.id];
           const hasAll = required.every(id => current.includes(id));
@@ -594,10 +598,139 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tenantCatalogAssignments]);
 
-  // Tenant-catalog-specific store discounts (tenantId -> catalogId -> storeName -> discount)
-  const [tenantCatalogStoreDiscounts, setTenantCatalogStoreDiscounts] = useState<Record<string, Record<string, Record<string, number>>>>(() => {
+  // Tenant-catalog events - wrap all features (discounts, stores, order)
+  // Structure: tenantId -> catalogId -> eventId -> { discounts, stores, order }
+  const [tenantCatalogEvents, setTenantCatalogEvents] = useState<Record<string, Record<string, Record<string, {
+    discounts: Record<string, number>;
+    stores: { stores: string[]; comboInstances: string[] };
+    order: string[];
+  }>>>>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('admin-tenant-catalog-store-discounts');
+      // Try to load from new structure first
+      const saved = localStorage.getItem('admin-tenant-catalog-events');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, try to migrate from old structures
+        }
+      }
+      
+      // Migrate from old separate structures
+      const migrated: Record<string, Record<string, Record<string, {
+        discounts: Record<string, number>;
+        stores: { stores: string[]; comboInstances: string[] };
+        order: string[];
+      }>>> = {};
+      
+      // Migrate discounts
+      const savedDiscounts = localStorage.getItem('admin-tenant-catalog-store-discounts');
+      if (savedDiscounts) {
+        try {
+          const discounts = JSON.parse(savedDiscounts);
+          Object.keys(discounts).forEach(tenantId => {
+            if (!migrated[tenantId]) migrated[tenantId] = {};
+            Object.keys(discounts[tenantId]).forEach(catalogId => {
+              if (!migrated[tenantId][catalogId]) migrated[tenantId][catalogId] = {};
+              const catalogDiscounts = discounts[tenantId][catalogId];
+              
+              // Check if it's old structure (storeName -> discount) or new (eventId -> storeName -> discount)
+              if (catalogDiscounts && typeof catalogDiscounts === 'object') {
+                const firstKey = Object.keys(catalogDiscounts)[0];
+                if (firstKey && (typeof catalogDiscounts[firstKey] === 'number')) {
+                  // Old structure - migrate to "default" event
+                  if (!migrated[tenantId][catalogId]['default']) {
+                    migrated[tenantId][catalogId]['default'] = {
+                      discounts: catalogDiscounts as Record<string, number>,
+                      stores: { stores: [], comboInstances: [] },
+                      order: []
+                    };
+                  } else {
+                    migrated[tenantId][catalogId]['default'].discounts = catalogDiscounts as Record<string, number>;
+                  }
+                } else {
+                  // New structure with events - migrate each event
+                  Object.keys(catalogDiscounts).forEach(eventId => {
+                    if (!migrated[tenantId][catalogId][eventId]) {
+                      migrated[tenantId][catalogId][eventId] = {
+                        discounts: catalogDiscounts[eventId] as Record<string, number>,
+                        stores: { stores: [], comboInstances: [] },
+                        order: []
+                      };
+                    } else {
+                      migrated[tenantId][catalogId][eventId].discounts = catalogDiscounts[eventId] as Record<string, number>;
+                    }
+                  });
+                }
+              }
+            });
+          });
+        } catch {
+          // Ignore migration errors
+        }
+      }
+      
+      // Migrate stores
+      const savedStores = localStorage.getItem('admin-tenant-catalog-stores');
+      if (savedStores) {
+        try {
+          const stores = JSON.parse(savedStores);
+          Object.keys(stores).forEach(tenantId => {
+            if (!migrated[tenantId]) migrated[tenantId] = {};
+            Object.keys(stores[tenantId]).forEach(catalogId => {
+              if (!migrated[tenantId][catalogId]) migrated[tenantId][catalogId] = {};
+              const catalogStores = stores[tenantId][catalogId];
+              if (!migrated[tenantId][catalogId]['default']) {
+                migrated[tenantId][catalogId]['default'] = {
+                  discounts: {},
+                  stores: catalogStores || { stores: [], comboInstances: [] },
+                  order: []
+                };
+              } else {
+                migrated[tenantId][catalogId]['default'].stores = catalogStores || { stores: [], comboInstances: [] };
+              }
+            });
+          });
+        } catch {
+          // Ignore migration errors
+        }
+      }
+      
+      // Migrate order
+      const savedOrder = localStorage.getItem('admin-tenant-catalog-store-order');
+      if (savedOrder) {
+        try {
+          const order = JSON.parse(savedOrder);
+          Object.keys(order).forEach(tenantId => {
+            if (!migrated[tenantId]) migrated[tenantId] = {};
+            Object.keys(order[tenantId]).forEach(catalogId => {
+              if (!migrated[tenantId][catalogId]) migrated[tenantId][catalogId] = {};
+              const catalogOrder = order[tenantId][catalogId];
+              if (!migrated[tenantId][catalogId]['default']) {
+                migrated[tenantId][catalogId]['default'] = {
+                  discounts: {},
+                  stores: { stores: [], comboInstances: [] },
+                  order: catalogOrder || []
+                };
+              } else {
+                migrated[tenantId][catalogId]['default'].order = catalogOrder || [];
+              }
+            });
+          });
+        } catch {
+          // Ignore migration errors
+        }
+      }
+      
+      return migrated;
+    }
+    return {};
+  });
+
+  // Selected event per tenant-catalog (tenantId -> catalogId -> eventId)
+  const [tenantCatalogSelectedEvent, setTenantCatalogSelectedEvent] = useState<Record<string, Record<string, string>>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-catalog-selected-event');
       if (saved) {
         try {
           return JSON.parse(saved);
@@ -609,74 +742,42 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return {};
   });
 
-  // Assign default USD catalog to HappyTenant1 and NG Tenant1 (not branch catalogs)
+  // Set default USD catalog as active for all tenants (all support all currencies, default to USD)
   useEffect(() => {
     if (tenants.length === 0 || catalogs.length === 0) return;
     
     const defaultUSCatalog = catalogs.find(c => c.name === "Default USD" && !c.isBranch);
     if (!defaultUSCatalog) return;
     
-    // Assign default USD catalog to HappyTenant1 (ensure not using branch catalog)
-    const happyTenant1 = tenants.find(t => t.name === "HappyTenant1");
-    if (happyTenant1) {
-      setActiveCatalogByTenant(prev => {
-        const currentCatalogId = prev[happyTenant1.id];
-        const currentCatalog = catalogs.find(c => c.id === currentCatalogId);
-        // If currently using a branch catalog, switch to default USD
-        if (currentCatalog?.isBranch || !currentCatalogId) {
-          return { ...prev, [happyTenant1.id]: defaultUSCatalog.id };
+    // Set default USD catalog as active for all tenants that don't have an active catalog set
+    setActiveCatalogByTenant(prev => {
+      const updated = { ...prev };
+      let changed = false;
+      
+      tenants.forEach(tenant => {
+        if (!prev[tenant.id]) {
+          updated[tenant.id] = defaultUSCatalog.id;
+          changed = true;
         }
-        return prev;
       });
-      // Also ensure in assignments
-      setTenantCatalogAssignments(prev => {
-        const current = prev[happyTenant1.id] || [];
-        // Remove any branch catalog assignments, keep only base catalogs
-        const baseCatalogs = current.filter(catalogId => {
-          const catalog = catalogs.find(c => c.id === catalogId);
-          return catalog && !catalog.isBranch;
-        });
-        if (!baseCatalogs.includes(defaultUSCatalog.id)) {
-          return { ...prev, [happyTenant1.id]: [...baseCatalogs, defaultUSCatalog.id] };
-        }
-        return prev;
-      });
-    }
-    
-    // Assign default USD catalog to NG Tenant1 (ensure not using branch catalog)
-    const ngTenant1 = tenants.find(t => t.name === "NG Tenant1");
-    if (ngTenant1) {
-      setActiveCatalogByTenant(prev => {
-        const currentCatalogId = prev[ngTenant1.id];
-        const currentCatalog = catalogs.find(c => c.id === currentCatalogId);
-        // If currently using a branch catalog, switch to default USD
-        if (currentCatalog?.isBranch || !currentCatalogId) {
-          return { ...prev, [ngTenant1.id]: defaultUSCatalog.id };
-        }
-        return prev;
-      });
-      // Also ensure in assignments
-      setTenantCatalogAssignments(prev => {
-        const current = prev[ngTenant1.id] || [];
-        // Remove any branch catalog assignments, keep only base catalogs
-        const baseCatalogs = current.filter(catalogId => {
-          const catalog = catalogs.find(c => c.id === catalogId);
-          return catalog && !catalog.isBranch;
-        });
-        if (!baseCatalogs.includes(defaultUSCatalog.id)) {
-          return { ...prev, [ngTenant1.id]: [...baseCatalogs, defaultUSCatalog.id] };
-        }
-        return prev;
-      });
-    }
+      
+      return changed ? updated : prev;
+    });
   }, [tenants.length, catalogs.length]); // Only run when tenants and catalogs are loaded
 
-  // Save tenant-catalog store discounts to localStorage whenever it changes
+  // Save tenant-catalog events to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('admin-tenant-catalog-store-discounts', JSON.stringify(tenantCatalogStoreDiscounts));
+      localStorage.setItem('admin-tenant-catalog-events', JSON.stringify(tenantCatalogEvents));
     }
-  }, [tenantCatalogStoreDiscounts]);
+  }, [tenantCatalogEvents]);
+
+  // Save selected event to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-catalog-selected-event', JSON.stringify(tenantCatalogSelectedEvent));
+    }
+  }, [tenantCatalogSelectedEvent]);
 
   // Tenant-catalog-specific store visibility (tenantId -> catalogId -> Set<storeName>)
   // If a store is in this map for a tenant-catalog, it means it's HIDDEN for that tenant-catalog
@@ -741,7 +842,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   }, [tenantCatalogStoreOrder]);
 
   // Tenant-catalog feature flags (which features are enabled per tenant-catalog)
-  const [tenantCatalogFeatureFlags, setTenantCatalogFeatureFlags] = useState<Record<string, Record<string, { discounts?: boolean; visibility?: boolean; order?: boolean }>>>(() => {
+  const [tenantCatalogFeatureFlags, setTenantCatalogFeatureFlags] = useState<Record<string, Record<string, { discounts?: boolean; visibility?: boolean; order?: boolean; stores?: boolean; forceSupplier?: boolean }>>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('admin-tenant-catalog-feature-flags');
       if (saved) {
@@ -762,7 +863,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tenantCatalogFeatureFlags]);
 
-  function setTenantCatalogFeatureFlag(tenantId: string, catalogId: string, feature: 'discounts' | 'visibility' | 'order', enabled: boolean) {
+  function setTenantCatalogFeatureFlag(tenantId: string, catalogId: string, feature: 'discounts' | 'visibility' | 'order' | 'stores' | 'forceSupplier', enabled: boolean) {
     setTenantCatalogFeatureFlags(prev => {
       const tenantFlags = prev[tenantId] || {};
       const current = tenantFlags[catalogId] || {};
@@ -781,7 +882,242 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         }
         return { ...prev, [tenantId]: { ...tenantFlags, [catalogId]: updated } };
       }
-      return { ...prev, [tenantId]: { ...tenantFlags, [catalogId]: { ...current, [feature]: true } } };
+      
+      // When enabling a feature, ensure default event exists
+      const updatedFlags = { ...prev, [tenantId]: { ...tenantFlags, [catalogId]: { ...current, [feature]: true } } };
+      
+      // Ensure default event exists for this tenant-catalog
+      setTenantCatalogEvents(prevEvents => {
+        const tenantCatalogs = prevEvents[tenantId] || {};
+        const catalogEvents = tenantCatalogs[catalogId] || {};
+        
+        // If default event doesn't exist, create it
+        if (!catalogEvents['default']) {
+          return {
+            ...prevEvents,
+            [tenantId]: {
+              ...tenantCatalogs,
+              [catalogId]: {
+                ...catalogEvents,
+                'default': {
+                  discounts: {},
+                  stores: { stores: [], comboInstances: [] },
+                  order: []
+                }
+              }
+            }
+          };
+        }
+        return prevEvents;
+      });
+      
+      // Ensure default event is selected if no event is currently selected
+      setTenantCatalogSelectedEvent(prevSelected => {
+        if (!prevSelected[tenantId]?.[catalogId]) {
+          return {
+            ...prevSelected,
+            [tenantId]: {
+              ...(prevSelected[tenantId] || {}),
+              [catalogId]: 'default'
+            }
+          };
+        }
+        return prevSelected;
+      });
+      
+      return updatedFlags;
+    });
+  }
+
+  // Tenant-specific stores state
+  const [tenantCatalogStores, setTenantCatalogStores] = useState<Record<string, Record<string, { stores: string[]; comboInstances: string[] }>>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-catalog-stores');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save tenant-catalog stores to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-catalog-stores', JSON.stringify(tenantCatalogStores));
+    }
+  }, [tenantCatalogStores]);
+
+  function addTenantCatalogStore(tenantId: string, catalogId: string, eventId: string, storeName: string) {
+    setTenantCatalogEvents(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      
+      // Ensure event exists (especially default event)
+      if (!catalogEvents[eventId]) {
+        catalogEvents[eventId] = { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+      }
+      
+      const eventData = catalogEvents[eventId];
+      
+      if (!eventData.stores.stores.includes(storeName)) {
+        return {
+          ...prev,
+          [tenantId]: {
+            ...tenantCatalogs,
+            [catalogId]: {
+              ...catalogEvents,
+              [eventId]: {
+                ...eventData,
+                stores: {
+                  ...eventData.stores,
+                  stores: [...eventData.stores.stores, storeName]
+                }
+              }
+            }
+          }
+        };
+      }
+      return prev;
+    });
+  }
+
+  function removeTenantCatalogStore(tenantId: string, catalogId: string, eventId: string, storeName: string) {
+    setTenantCatalogEvents(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      const eventData = catalogEvents[eventId];
+      if (!eventData) return prev;
+      
+      const updatedStores = eventData.stores.stores.filter(s => s !== storeName);
+      
+      return {
+        ...prev,
+        [tenantId]: {
+          ...tenantCatalogs,
+          [catalogId]: {
+            ...catalogEvents,
+            [eventId]: {
+              ...eventData,
+              stores: {
+                ...eventData.stores,
+                stores: updatedStores
+              }
+            }
+          }
+        }
+      };
+    });
+  }
+
+  function addTenantCatalogComboInstance(tenantId: string, catalogId: string, eventId: string, comboInstanceId: string) {
+    setTenantCatalogEvents(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      
+      // Ensure event exists (especially default event)
+      if (!catalogEvents[eventId]) {
+        catalogEvents[eventId] = { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+      }
+      
+      const eventData = catalogEvents[eventId];
+      
+      if (!eventData.stores.comboInstances.includes(comboInstanceId)) {
+        return {
+          ...prev,
+          [tenantId]: {
+            ...tenantCatalogs,
+            [catalogId]: {
+              ...catalogEvents,
+              [eventId]: {
+                ...eventData,
+                stores: {
+                  ...eventData.stores,
+                  comboInstances: [...eventData.stores.comboInstances, comboInstanceId]
+                }
+              }
+            }
+          }
+        };
+      }
+      return prev;
+    });
+  }
+
+  function removeTenantCatalogComboInstance(tenantId: string, catalogId: string, eventId: string, comboInstanceId: string) {
+    setTenantCatalogEvents(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      const eventData = catalogEvents[eventId];
+      if (!eventData) return prev;
+      
+      const updatedComboInstances = eventData.stores.comboInstances.filter(id => id !== comboInstanceId);
+      
+      return {
+        ...prev,
+        [tenantId]: {
+          ...tenantCatalogs,
+          [catalogId]: {
+            ...catalogEvents,
+            [eventId]: {
+              ...eventData,
+              stores: {
+                ...eventData.stores,
+                comboInstances: updatedComboInstances
+              }
+            }
+          }
+        }
+      };
+    });
+  }
+
+  // Tenant-catalog forced supplier state
+  const [tenantCatalogForcedSupplier, setTenantCatalogForcedSupplierState] = useState<Record<string, Record<string, number | null>>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-catalog-forced-supplier');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save tenant-catalog forced supplier to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-tenant-catalog-forced-supplier', JSON.stringify(tenantCatalogForcedSupplier));
+    }
+  }, [tenantCatalogForcedSupplier]);
+
+  function setTenantCatalogForcedSupplier(tenantId: string, catalogId: string, supplierId: number | null) {
+    setTenantCatalogForcedSupplierState(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      if (supplierId === null) {
+        // Remove the forced supplier
+        const newTenantCatalogs = { ...tenantCatalogs };
+        delete newTenantCatalogs[catalogId];
+        if (Object.keys(newTenantCatalogs).length === 0) {
+          const newForced = { ...prev };
+          delete newForced[tenantId];
+          return newForced;
+        }
+        return { ...prev, [tenantId]: newTenantCatalogs };
+      }
+      return {
+        ...prev,
+        [tenantId]: {
+          ...tenantCatalogs,
+          [catalogId]: supplierId
+        }
+      };
     });
   }
 
@@ -953,23 +1289,130 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [combos]);
 
+  // Initialize 10 different combo instances on first load
+  useEffect(() => {
+    if (catalogs.length === 0 || masterCombos.length === 0 || stores.length === 0) return;
+    
+    // Check if we already have combo instances (either in state or localStorage)
+    // Only initialize if we have fewer than 10 combo instances
+    if (comboInstances.length >= 10) return;
+    
+    // Also check localStorage to avoid reinitializing after a refresh
+    if (typeof window !== 'undefined') {
+      const savedComboInstances = localStorage.getItem('admin-combo-instances');
+      if (savedComboInstances) {
+        try {
+          const parsed = JSON.parse(savedComboInstances);
+          // If we already have 10 or more combo instances saved, don't reinitialize
+          if (parsed.length >= 10) return;
+        } catch {
+          // If parsing fails, continue with initialization
+        }
+      }
+    }
+
+    // Get base catalogs (one per currency)
+    const usCatalog = catalogs.find(c => c.name === "Default USD");
+    const caCatalog = catalogs.find(c => c.name === "Default CAD");
+    const gbCatalog = catalogs.find(c => c.name === "Default GBP");
+    
+    if (!usCatalog || !caCatalog || !gbCatalog) return;
+
+    // Get default master combos
+    const usdMasterCombo = masterCombos.find(m => m.name === "Default Combo Card" && m.currency === "USD");
+    const cadMasterCombo = masterCombos.find(m => m.name === "Default Combo Card" && m.currency === "CAD");
+    const gbpMasterCombo = masterCombos.find(m => m.name === "Default Combo Card" && m.currency === "GBP");
+
+    const newComboInstances: ComboInstance[] = [];
+    
+    // Combo names for variety
+    const comboNames = [
+      "Premium Combo Card",
+      "Elite Combo Card",
+      "Ultimate Combo Card",
+      "Super Combo Card",
+      "Deluxe Combo Card",
+      "Platinum Combo Card",
+      "Gold Combo Card",
+      "Silver Combo Card",
+      "Bronze Combo Card",
+      "Classic Combo Card"
+    ];
+
+    // Create 10 combo instances distributed across catalogs
+    // 4 USD, 3 CAD, 3 GBP
+    for (let i = 0; i < 10; i++) {
+      let catalog: Catalog;
+      let masterCombo: MasterCombo | undefined;
+      let currency: Currency;
+      
+      if (i < 4) {
+        // First 4: USD
+        catalog = usCatalog;
+        masterCombo = usdMasterCombo;
+        currency = "USD";
+      } else if (i < 7) {
+        // Next 3: CAD
+        catalog = caCatalog;
+        masterCombo = cadMasterCombo;
+        currency = "CAD";
+      } else {
+        // Last 3: GBP
+        catalog = gbCatalog;
+        masterCombo = gbpMasterCombo;
+        currency = "GBP";
+      }
+
+      // Get stores for this currency
+      const currencyStores = stores.filter(s => 
+        (currency === "USD" && s.country === "US") ||
+        (currency === "CAD" && s.country === "CA") ||
+        (currency === "GBP" && s.country === "GB")
+      );
+
+      // Create combo instance
+      const comboInstance: ComboInstance = {
+        id: `combo-instance-init-${i}-${Date.now()}`,
+        catalogId: catalog.id,
+        masterComboId: masterCombo?.id || null,
+        displayName: comboNames[i],
+        imageUrl: `https://via.placeholder.com/300x200?text=${encodeURIComponent(comboNames[i])}`,
+        customStoreNames: masterCombo ? null : currencyStores.slice(0, 5).map(s => s.name),
+        denominations: [25, 50, 100, 200, 500],
+        isActive: true,
+        dateModified: new Date(),
+      };
+
+      newComboInstances.push(comboInstance);
+    }
+
+    if (newComboInstances.length > 0) {
+      setComboInstances(prev => {
+        // Only add if we have fewer than 10 total
+        if (prev.length >= 10) return prev;
+        
+        // Calculate how many we need to add
+        const needed = 10 - prev.length;
+        const toAdd = newComboInstances.slice(0, needed);
+        
+        // Only add if they don't already exist (by display name to avoid duplicates)
+        const existingNames = new Set(prev.map(ci => ci.displayName));
+        const uniqueToAdd = toAdd.filter(ci => !existingNames.has(ci.displayName));
+        
+        return [...prev, ...uniqueToAdd];
+      });
+    }
+  }, [catalogs, masterCombos, stores]);
+
+
   const [activeCatalogByTenant, setActiveCatalogByTenant] = useState<Record<string, string>>(() => {
     // Set base catalogs as default for all tenants
     const usBaseCatalog = initialCatalogs.find(c => c.name === "Default USD");
-    const caBaseCatalog = initialCatalogs.find(c => c.name === "Default CAD");
-    const gbBaseCatalog = initialCatalogs.find(c => c.name === "Default GBP");
     
     const mapping: Record<string, string> = {};
-    tenants.forEach((t, index) => {
-      // First 3 tenants (HappyTenant1, NG Tenant1, Global Tropper) are global - default to USD
-      // All other tenants get catalog based on their country
-      if (index < 3) {
-        mapping[t.id] = usBaseCatalog?.id || "";
-      } else {
-        const defaultCatalog = t.country === "US" ? usBaseCatalog : 
-                              t.country === "CA" ? caBaseCatalog : gbBaseCatalog;
-        mapping[t.id] = defaultCatalog?.id || "";
-      }
+    // All tenants support all currencies - default all to USD
+    tenants.forEach((t) => {
+      mapping[t.id] = usBaseCatalog?.id || "";
     });
     return mapping;
   });
@@ -1245,20 +1688,40 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
 
   function getEffectiveCatalogForTenant(tenantId: string, catalogId: string): Catalog {
     const baseCatalog = getEffectiveCatalog(catalogId);
-    const tenantCatalogDiscounts = tenantCatalogStoreDiscounts[tenantId]?.[catalogId] || {};
+    const selectedEventId = tenantCatalogSelectedEvent[tenantId]?.[catalogId] || 'default';
+    const catalogEvents = tenantCatalogEvents[tenantId]?.[catalogId] || {};
+    // If event doesn't exist, use empty structure (it will be created when features are first used)
+    const eventData = catalogEvents[selectedEventId] || { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+    
     const hiddenStores = tenantCatalogHiddenStores[tenantId]?.[catalogId] || new Set<string>();
-    const customOrder = tenantCatalogStoreOrder[tenantId]?.[catalogId];
+    const flags = tenantCatalogFeatureFlags[tenantId]?.[catalogId] || {};
+    const forcedSupplier = tenantCatalogForcedSupplier[tenantId]?.[catalogId];
     
-    // Filter out stores that are hidden for this tenant-catalog
-    let visibleStores = baseCatalog.stores.filter(store => !hiddenStores.has(store.name));
+    // If stores feature is enabled, filter to only tenant-specific stores from the event
+    let visibleStores = baseCatalog.stores;
+    if (flags.stores && eventData.stores) {
+      visibleStores = visibleStores.filter(store => eventData.stores.stores.includes(store.name));
+    } else {
+      // Otherwise, filter out stores that are hidden for this tenant-catalog
+      visibleStores = visibleStores.filter(store => !hiddenStores.has(store.name));
+    }
     
-    // Apply tenant-catalog-specific store order if provided
-    if (customOrder && customOrder.length > 0) {
+    // If forceSupplier feature is enabled, filter to only stores with the forced supplier
+    if (flags.forceSupplier && forcedSupplier !== null && forcedSupplier !== undefined) {
+      visibleStores = visibleStores.filter(store => {
+        const storeKey = `${store.country}-${store.name}`;
+        const supplierData = storeSuppliers[storeKey];
+        return supplierData?.selectedSupplier === forcedSupplier;
+      });
+    }
+    
+    // Apply tenant-catalog-specific store order from the event
+    if (eventData.order && eventData.order.length > 0) {
       const storeMap = new Map(visibleStores.map(s => [s.name, s]));
       const ordered: Store[] = [];
       
       // Add stores in custom order
-      customOrder.forEach(storeName => {
+      eventData.order.forEach(storeName => {
         const store = storeMap.get(storeName);
         if (store) {
           ordered.push(store);
@@ -1272,9 +1735,9 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       visibleStores = ordered;
     }
     
-    // Apply tenant-catalog-specific discounts on top of catalog discounts
+    // Apply tenant-catalog-specific discounts from the event on top of catalog discounts
     const effectiveDiscounts = { ...baseCatalog.storeDiscounts };
-    Object.entries(tenantCatalogDiscounts).forEach(([storeName, discount]) => {
+    Object.entries(eventData.discounts).forEach(([storeName, discount]) => {
       if (discount === 0) {
         // If discount is 0, remove it (no override)
         delete effectiveDiscounts[storeName];
@@ -1472,21 +1935,31 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  function updateTenantCatalogStoreOrder(tenantId: string, catalogId: string, storeOrder: string[]) {
-    setTenantCatalogStoreOrder(prev => {
-      const tenantOrders = prev[tenantId] || {};
-      if (storeOrder.length === 0) {
-        // Remove empty order
-        const newTenantOrders = { ...tenantOrders };
-        delete newTenantOrders[catalogId];
-        if (Object.keys(newTenantOrders).length === 0) {
-          const newOrders = { ...prev };
-          delete newOrders[tenantId];
-          return newOrders;
-        }
-        return { ...prev, [tenantId]: newTenantOrders };
+  function updateTenantCatalogStoreOrder(tenantId: string, catalogId: string, eventId: string, storeOrder: string[]) {
+    setTenantCatalogEvents(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      
+      // Ensure event exists (especially default event)
+      if (!catalogEvents[eventId]) {
+        catalogEvents[eventId] = { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
       }
-      return { ...prev, [tenantId]: { ...tenantOrders, [catalogId]: storeOrder } };
+      
+      const eventData = catalogEvents[eventId];
+      
+      return {
+        ...prev,
+        [tenantId]: {
+          ...tenantCatalogs,
+          [catalogId]: {
+            ...catalogEvents,
+            [eventId]: {
+              ...eventData,
+              order: storeOrder
+            }
+          }
+        }
+      };
     });
   }
 
@@ -1518,30 +1991,180 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  function setTenantCatalogStoreDiscount(tenantId: string, catalogId: string, storeName: string, discount: number) {
-    setTenantCatalogStoreDiscounts(prev => {
+  function setTenantCatalogStoreDiscount(tenantId: string, catalogId: string, eventId: string, storeName: string, discount: number) {
+    setTenantCatalogEvents(prev => {
       const tenantCatalogs = prev[tenantId] || {};
-      const catalogDiscounts = tenantCatalogs[catalogId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      
+      // Ensure event exists (especially default event)
+      if (!catalogEvents[eventId]) {
+        catalogEvents[eventId] = { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+      }
+      
+      const eventData = catalogEvents[eventId];
       const clamped = Math.max(0, Math.min(100, discount));
       
+      const updatedDiscounts = { ...eventData.discounts };
       if (clamped === 0) {
-        // Remove discount if set to 0
-        const updated = { ...catalogDiscounts };
-        delete updated[storeName];
-        if (Object.keys(updated).length === 0) {
-          const newTenantCatalogs = { ...tenantCatalogs };
-          delete newTenantCatalogs[catalogId];
-          if (Object.keys(newTenantCatalogs).length === 0) {
-            const newDiscounts = { ...prev };
-            delete newDiscounts[tenantId];
-            return newDiscounts;
-          }
-          return { ...prev, [tenantId]: newTenantCatalogs };
-        }
-        return { ...prev, [tenantId]: { ...tenantCatalogs, [catalogId]: updated } };
+        delete updatedDiscounts[storeName];
+      } else {
+        updatedDiscounts[storeName] = clamped;
       }
-      return { ...prev, [tenantId]: { ...tenantCatalogs, [catalogId]: { ...catalogDiscounts, [storeName]: clamped } } };
+      
+      return {
+        ...prev,
+        [tenantId]: {
+          ...tenantCatalogs,
+          [catalogId]: {
+            ...catalogEvents,
+            [eventId]: {
+              ...eventData,
+              discounts: updatedDiscounts
+            }
+          }
+        }
+      };
     });
+  }
+
+  function updateTenantCatalogSelectedEvent(tenantId: string, catalogId: string, eventId: string) {
+    setTenantCatalogSelectedEvent(prev => ({
+      ...prev,
+      [tenantId]: {
+        ...(prev[tenantId] || {}),
+        [catalogId]: eventId
+      }
+    }));
+  }
+
+  function createTenantCatalogEvent(tenantId: string, catalogId: string, eventName: string): string {
+    const eventId = `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Initialize the event with empty structure
+    setTenantCatalogEvents(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      
+      return {
+        ...prev,
+        [tenantId]: {
+          ...tenantCatalogs,
+          [catalogId]: {
+            ...catalogEvents,
+            [eventId]: {
+              discounts: {},
+              stores: { stores: [], comboInstances: [] },
+              order: []
+            }
+          }
+        }
+      };
+    });
+
+    // Store event names separately for easy retrieval
+    if (typeof window !== 'undefined') {
+      const eventNamesKey = 'admin-tenant-catalog-event-names';
+      const saved = localStorage.getItem(eventNamesKey);
+      const eventNames: Record<string, Record<string, Record<string, string>>> = saved ? JSON.parse(saved) : {};
+      if (!eventNames[tenantId]) eventNames[tenantId] = {};
+      if (!eventNames[tenantId][catalogId]) eventNames[tenantId][catalogId] = {};
+      eventNames[tenantId][catalogId][eventId] = eventName;
+      localStorage.setItem(eventNamesKey, JSON.stringify(eventNames));
+    }
+
+    // Select the new event
+    updateTenantCatalogSelectedEvent(tenantId, catalogId, eventId);
+    
+    return eventId;
+  }
+
+  function deleteTenantCatalogEvent(tenantId: string, catalogId: string, eventId: string) {
+    // Don't allow deleting the default event
+    if (eventId === 'default') return;
+
+    setTenantCatalogEvents(prev => {
+      const tenantCatalogs = prev[tenantId] || {};
+      const catalogEvents = tenantCatalogs[catalogId] || {};
+      const newCatalogEvents = { ...catalogEvents };
+      delete newCatalogEvents[eventId];
+      
+      if (Object.keys(newCatalogEvents).length === 0) {
+        const newTenantCatalogs = { ...tenantCatalogs };
+        delete newTenantCatalogs[catalogId];
+        if (Object.keys(newTenantCatalogs).length === 0) {
+          const newEvents = { ...prev };
+          delete newEvents[tenantId];
+          return newEvents;
+        }
+        return { ...prev, [tenantId]: newTenantCatalogs };
+      }
+      return { ...prev, [tenantId]: { ...tenantCatalogs, [catalogId]: newCatalogEvents } };
+    });
+
+    // Remove event name
+    if (typeof window !== 'undefined') {
+      const eventNamesKey = 'admin-tenant-catalog-event-names';
+      const saved = localStorage.getItem(eventNamesKey);
+      if (saved) {
+        const eventNames: Record<string, Record<string, Record<string, string>>> = JSON.parse(saved);
+        if (eventNames[tenantId]?.[catalogId]?.[eventId]) {
+          delete eventNames[tenantId][catalogId][eventId];
+          if (Object.keys(eventNames[tenantId][catalogId]).length === 0) {
+            delete eventNames[tenantId][catalogId];
+          }
+          if (Object.keys(eventNames[tenantId]).length === 0) {
+            delete eventNames[tenantId];
+          }
+          localStorage.setItem(eventNamesKey, JSON.stringify(eventNames));
+        }
+      }
+    }
+
+    // If this was the selected event, switch to default
+    const selectedEvent = tenantCatalogSelectedEvent[tenantId]?.[catalogId];
+    if (selectedEvent === eventId) {
+      updateTenantCatalogSelectedEvent(tenantId, catalogId, 'default');
+    }
+  }
+
+  function getTenantCatalogEvents(tenantId: string, catalogId: string): Array<{ id: string; name: string }> {
+    const catalogEvents = tenantCatalogEvents[tenantId]?.[catalogId] || {};
+    const eventIds = Object.keys(catalogEvents);
+    const flags = tenantCatalogFeatureFlags[tenantId]?.[catalogId] || {};
+    const hasAnyFeature = flags.discounts || flags.order || flags.stores || flags.forceSupplier;
+    
+    // Get event names from localStorage
+    let eventNames: Record<string, Record<string, Record<string, string>>> = {};
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-tenant-catalog-event-names');
+      if (saved) {
+        try {
+          eventNames = JSON.parse(saved);
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    const events: Array<{ id: string; name: string }> = [];
+    
+    // If features are enabled, always include default event (even if it doesn't exist in events yet)
+    // This ensures the default event is available when features are first enabled
+    if (hasAnyFeature || eventIds.includes('default')) {
+      events.push({ id: 'default', name: 'Default' });
+    }
+    
+    // Add other events (non-default)
+    eventIds.forEach(eventId => {
+      if (eventId !== 'default') {
+        events.push({
+          id: eventId,
+          name: eventNames[tenantId]?.[catalogId]?.[eventId] || eventId
+        });
+      }
+    });
+
+    return events;
   }
 
   function removeTenantFromCatalog(catalogId: string, tenantId: string) {
@@ -1784,6 +2407,20 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return comboInstances.filter(instance => instance.catalogId === catalogId);
   }
 
+  function getComboInstancesForTenant(tenantId: string, catalogId: string): ComboInstance[] {
+    const allInstances = getComboInstancesForCatalog(catalogId);
+    const flags = tenantCatalogFeatureFlags[tenantId]?.[catalogId] || {};
+    const tenantStores = tenantCatalogStores[tenantId]?.[catalogId];
+    
+    // If stores feature is enabled, filter to only tenant-specific combo instances
+    if (flags.stores && tenantStores) {
+      return allInstances.filter(instance => tenantStores.comboInstances.includes(instance.id));
+    }
+    
+    // Otherwise, return all combo instances for the catalog
+    return allInstances;
+  }
+
   function getComboInstanceStores(instanceId: string): string[] {
     const instance = comboInstances.find(i => i.id === instanceId);
     if (!instance) return [];
@@ -1873,6 +2510,391 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return stores.filter(store => isStoreActive(store.name, store.country));
   }
 
+  // Supplier management for stores
+  const [storeSuppliers, setStoreSuppliers] = useState<Record<string, { selectedSupplier: number | null; secondarySupplier: number | null; discounts: Record<number, number>; offeringSuppliers: number[] }>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-store-suppliers');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save store suppliers to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-store-suppliers', JSON.stringify(storeSuppliers));
+    }
+  }, [storeSuppliers]);
+
+  // Initialize random margins for all stores and select the supplier with highest margin
+  useEffect(() => {
+    if (stores.length === 0) return;
+    
+    setStoreSuppliers(prev => {
+      const updated = { ...prev };
+      let hasChanges = false;
+
+      stores.forEach(store => {
+        const key = `${store.country}-${store.name}`;
+        const existing = updated[key];
+        
+        // Check if store needs initialization or migration
+        const needsInitialization = !existing || Object.keys(existing.discounts || {}).length === 0;
+        const hasAllSuppliers = existing?.offeringSuppliers?.length === 5;
+        const missingOfferingSuppliers = !existing?.offeringSuppliers || existing.offeringSuppliers.length === 0;
+        const isAmazonUS = store.name === "Amazon" && store.country === "US";
+        const needsAmazonUpdate = isAmazonUS && existing && existing.offeringSuppliers?.includes(3);
+        
+        // Initialize new stores or migrate stores that have all 5 suppliers (pre-unavailability feature)
+        // Also update Amazon (US) if Supplier 3 is currently available
+        if (needsInitialization || hasAllSuppliers || needsAmazonUpdate) {
+          // Determine which suppliers are offering this store
+          const allSuppliers = [1, 2, 3, 4, 5];
+          const excludedSuppliers = new Set<number>();
+          
+          // Use deterministic hash based on store key for consistent results
+          const hashKey = `${store.country}-${store.name}`;
+          let hash = 0;
+          for (let i = 0; i < hashKey.length; i++) {
+            hash = (hash * 31 + hashKey.charCodeAt(i)) | 0;
+          }
+          
+          // Use hash to create pseudo-random but consistent results
+          const random1 = (Math.abs(hash) % 100) / 100;
+          const random2 = ((Math.abs(hash * 7) % 100) / 100);
+          const random3 = ((Math.abs(hash * 13) % 100) / 100);
+          const random4 = ((Math.abs(hash * 17) % 100) / 100);
+          const random5 = ((Math.abs(hash * 19) % 100) / 100);
+          
+          // Randomly make Supplier 1 unavailable for some brands (35% chance)
+          if (random1 < 0.35) {
+            excludedSuppliers.add(1);
+          }
+          
+          // Randomly make other suppliers (2, 3, 4, 5) unavailable for 20% of stores each
+          if (random2 < 0.20) excludedSuppliers.add(2);
+          if (random3 < 0.20) excludedSuppliers.add(3);
+          if (random4 < 0.20) excludedSuppliers.add(4);
+          if (random5 < 0.20) excludedSuppliers.add(5);
+          
+          // Special case: Amazon (US) - Supplier 3 is always unavailable
+          if (store.name === "Amazon" && store.country === "US") {
+            excludedSuppliers.add(3);
+          }
+          
+          // Ensure at least 1 supplier remains available
+          if (excludedSuppliers.size >= 5) {
+            // If all suppliers are excluded, randomly keep one available
+            const randomSupplier = (Math.abs(hash) % 5) + 1;
+            excludedSuppliers.delete(randomSupplier);
+          }
+          
+          // Add suppliers that are not excluded
+          const offeringSuppliers: number[] = [];
+          allSuppliers.forEach(id => {
+            if (!excludedSuppliers.has(id)) {
+              offeringSuppliers.push(id);
+            }
+          });
+          
+          // Generate random margins between 3% and 15% for offering suppliers only
+          // Use existing discounts if available, otherwise generate new ones
+          const discounts: Record<number, number> = existing?.discounts || {};
+          let highestMargin = 0;
+          let bestSupplier: number | null = existing?.selectedSupplier || null;
+
+          // Generate margins for offering suppliers that don't have them yet
+          offeringSuppliers.forEach(supplierId => {
+            if (!discounts[supplierId]) {
+              // Use deterministic pseudo-random based on hash and supplier ID
+              const supplierHash = Math.abs((hash * (supplierId + 1)) % 10000);
+              const margin = Math.round((supplierHash % 1200) / 100 + 3) / 100; // 3-15% range
+              discounts[supplierId] = margin;
+            }
+            
+            // Track the supplier with highest margin
+            const margin = discounts[supplierId] || 0;
+            if (margin > highestMargin) {
+              highestMargin = margin;
+              bestSupplier = supplierId;
+            }
+          });
+          
+          // Remove discounts for suppliers that are no longer offering
+          Object.keys(discounts).forEach(supplierIdStr => {
+            const supplierId = parseInt(supplierIdStr);
+            if (!offeringSuppliers.includes(supplierId)) {
+              delete discounts[supplierId];
+            }
+          });
+          
+          // Update selected supplier if current one is no longer offering
+          if (bestSupplier !== null && !offeringSuppliers.includes(bestSupplier)) {
+            // Find the supplier with highest margin among available suppliers
+            let newBestSupplier: number | null = null;
+            let newHighestMargin = 0;
+            offeringSuppliers.forEach(supplierId => {
+              const margin = discounts[supplierId] || 0;
+              if (margin > newHighestMargin) {
+                newHighestMargin = margin;
+                newBestSupplier = supplierId;
+              }
+            });
+            bestSupplier = newBestSupplier;
+          }
+          
+          // For Amazon (US), ensure Supplier 3 is not selected if it was previously selected
+          if (isAmazonUS && bestSupplier === 3) {
+            // Select the supplier with highest margin (excluding Supplier 3)
+            let newBestSupplier: number | null = null;
+            let newHighestMargin = 0;
+            offeringSuppliers.forEach(supplierId => {
+              const margin = discounts[supplierId] || 0;
+              if (margin > newHighestMargin) {
+                newHighestMargin = margin;
+                newBestSupplier = supplierId;
+              }
+            });
+            bestSupplier = newBestSupplier;
+          }
+
+          updated[key] = {
+            selectedSupplier: bestSupplier,
+            secondarySupplier: existing?.secondarySupplier || null,
+            discounts,
+            offeringSuppliers
+          };
+          hasChanges = true;
+        } else if (missingOfferingSuppliers) {
+          // Migrate existing data to include offeringSuppliers if missing
+          const offeringSuppliers = Object.keys(existing.discounts || {}).map(k => parseInt(k)).filter(k => !isNaN(k));
+          updated[key] = {
+            ...existing,
+            offeringSuppliers: offeringSuppliers.length > 0 ? offeringSuppliers : [1, 2, 3, 4, 5]
+          };
+          hasChanges = true;
+        }
+        
+        // Cleanup: Ensure no store has an unavailable supplier selected
+        if (existing) {
+          const offeringSuppliers = existing.offeringSuppliers || [1, 2, 3, 4, 5];
+          let needsUpdate = false;
+          let newSelectedSupplier = existing.selectedSupplier;
+          let newSecondarySupplier = existing.secondarySupplier;
+          
+          // Check selected supplier
+          if (existing.selectedSupplier !== null && !offeringSuppliers.includes(existing.selectedSupplier)) {
+            // Selected supplier is not available - find the best available one
+            let bestSupplier: number | null = null;
+            let highestMargin = 0;
+            offeringSuppliers.forEach(supplierId => {
+              const margin = existing.discounts[supplierId] || 0;
+              if (margin > highestMargin) {
+                highestMargin = margin;
+                bestSupplier = supplierId;
+              }
+            });
+            newSelectedSupplier = bestSupplier;
+            needsUpdate = true;
+          }
+          
+          // Check secondary supplier
+          if (existing.secondarySupplier !== null) {
+            if (!offeringSuppliers.includes(existing.secondarySupplier)) {
+              // Secondary supplier is not available - clear it
+              newSecondarySupplier = null;
+              needsUpdate = true;
+            } else if (existing.secondarySupplier === newSelectedSupplier) {
+              // Secondary supplier can't be the same as selected supplier
+              newSecondarySupplier = null;
+              needsUpdate = true;
+            }
+          }
+          
+          if (needsUpdate) {
+            updated[key] = {
+              ...existing,
+              selectedSupplier: newSelectedSupplier,
+              secondarySupplier: newSecondarySupplier
+            };
+            hasChanges = true;
+          }
+        }
+      });
+
+      return hasChanges ? updated : prev;
+    });
+  }, [stores]);
+
+  function setStoreSupplierDiscount(storeName: string, country: Country, supplierId: number, discount: number) {
+    const key = `${country}-${storeName}`;
+    setStoreSuppliers(prev => {
+      const current = prev[key] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+      const offeringSuppliers = current.offeringSuppliers || [1, 2, 3, 4, 5];
+      
+      // Don't allow setting discount for unavailable suppliers
+      if (!offeringSuppliers.includes(supplierId)) {
+        return prev; // Return unchanged if supplier is not offering
+      }
+      
+      const updatedDiscounts = {
+        ...current.discounts,
+        [supplierId]: Math.max(0, Math.min(100, discount)) // Clamp between 0 and 100
+      };
+      
+      // Find the supplier with the highest margin among offering suppliers only
+      let highestMargin = 0;
+      let bestSupplier: number | null = null;
+      
+      offeringSuppliers.forEach(id => {
+        const margin = updatedDiscounts[id] || 0;
+        if (margin > highestMargin) {
+          highestMargin = margin;
+          bestSupplier = id;
+        }
+      });
+      
+      return {
+        ...prev,
+        [key]: {
+          selectedSupplier: bestSupplier,
+          secondarySupplier: current.secondarySupplier || null,
+          discounts: updatedDiscounts,
+          offeringSuppliers: current.offeringSuppliers || [1, 2, 3, 4, 5]
+        }
+      };
+    });
+  }
+
+  function setStoreSelectedSupplier(storeName: string, country: Country, supplierId: number | null) {
+    const key = `${country}-${storeName}`;
+    setStoreSuppliers(prev => {
+      const current = prev[key] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+      // Only allow selecting suppliers that are offering this store
+      const offeringSuppliers = current.offeringSuppliers || [1, 2, 3, 4, 5];
+      if (supplierId !== null && !offeringSuppliers.includes(supplierId)) {
+        return prev; // Don't allow selecting non-offering suppliers
+      }
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          selectedSupplier: supplierId
+        }
+      };
+    });
+  }
+
+  function setStoreSecondarySupplier(storeName: string, country: Country, supplierId: number | null) {
+    const key = `${country}-${storeName}`;
+    setStoreSuppliers(prev => {
+      const current = prev[key] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+      // Only allow selecting suppliers that are offering this store
+      const offeringSuppliers = current.offeringSuppliers || [1, 2, 3, 4, 5];
+      if (supplierId !== null && !offeringSuppliers.includes(supplierId)) {
+        return prev; // Don't allow selecting non-offering suppliers
+      }
+      // Don't allow secondary supplier to be the same as selected supplier
+      if (supplierId !== null && supplierId === current.selectedSupplier) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          secondarySupplier: supplierId
+        }
+      };
+    });
+  }
+
+  // Store descriptions and T&C management
+  // For regular stores: key is `${country}-${storeName}`
+  // For combo instances: key is `combo-${comboInstanceId}`
+  const [storeContent, setStoreContentState] = useState<Record<string, { description: string; termsAndConditions: string }>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-store-content');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save store content to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-store-content', JSON.stringify(storeContent));
+    }
+  }, [storeContent]);
+
+  function getStoreContent(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string): { description: string; termsAndConditions: string } {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+    return storeContent[key] || { description: '', termsAndConditions: '' };
+  }
+
+  function setStoreContent(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, content: { description: string; termsAndConditions: string }) {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+    setStoreContentState(prev => ({
+      ...prev,
+      [key]: content
+    }));
+  }
+
+  // Store image management
+  // For regular stores: key is `${country}-${storeName}`
+  // For combo instances: key is `combo-${comboInstanceId}`
+  const [storeImages, setStoreImagesState] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-store-images');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall through to default
+        }
+      }
+    }
+    return {};
+  });
+
+  // Save store images to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-store-images', JSON.stringify(storeImages));
+    }
+  }, [storeImages]);
+
+  function getStoreImage(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string): string | null {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+    return storeImages[key] || null;
+  }
+
+  function setStoreImage(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+    setStoreImagesState(prev => {
+      if (imageUrl === null) {
+        const updated = { ...prev };
+        delete updated[key];
+        return updated;
+      }
+      return {
+        ...prev,
+        [key]: imageUrl
+      };
+    });
+  }
+
   const value: AdminDataContextValue = {
     tenants,
     stores,
@@ -1891,14 +2913,24 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     getTenantsForCatalog,
     addTenantToCatalog,
     removeTenantFromCatalog,
+    tenantCatalogEvents,
+    tenantCatalogSelectedEvent,
+    setTenantCatalogSelectedEvent: updateTenantCatalogSelectedEvent,
+    createTenantCatalogEvent,
+    deleteTenantCatalogEvent,
+    getTenantCatalogEvents,
     setTenantCatalogStoreDiscount,
-    tenantCatalogStoreDiscounts,
+    updateTenantCatalogStoreOrder,
+    addTenantCatalogStore,
+    removeTenantCatalogStore,
+    addTenantCatalogComboInstance,
+    removeTenantCatalogComboInstance,
     setTenantCatalogStoreVisibility,
     tenantCatalogHiddenStores,
-    updateTenantCatalogStoreOrder,
-    tenantCatalogStoreOrder,
     tenantCatalogFeatureFlags,
     setTenantCatalogFeatureFlag,
+    tenantCatalogForcedSupplier,
+    setTenantCatalogForcedSupplier,
     moveStoreInCatalog,
     setStoreFee,
     setCatalogFee,
@@ -1928,6 +2960,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     deleteComboInstance,
     getComboInstance,
     getComboInstancesForCatalog,
+    getComboInstancesForTenant,
     getComboInstanceStores,
     combos,
     createCombo,
@@ -1939,6 +2972,14 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     isStoreActive,
     toggleStoreActive,
     getActiveStores,
+    storeSuppliers,
+    setStoreSupplierDiscount,
+    setStoreSelectedSupplier,
+    setStoreSecondarySupplier,
+    getStoreContent,
+    setStoreContent,
+    getStoreImage,
+    setStoreImage,
   };
 
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;

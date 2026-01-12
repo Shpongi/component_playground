@@ -14,6 +14,7 @@ export default function TenantsPage() {
     getEffectiveCatalogForTenant,
     comboInstances,
     getComboInstancesForCatalog,
+    getComboInstancesForTenant,
     getComboInstanceStores,
     getMasterCombo,
     stores,
@@ -52,7 +53,9 @@ export default function TenantsPage() {
   const previewStores: Store[] = previewCatalog ? previewCatalog.stores : [];
   const previewDiscounts = previewCatalog ? previewCatalog.storeDiscounts : {};
   const previewStoreCSS = previewCatalog ? previewCatalog.storeCSS : {};
-  const previewComboInstances = previewCatalogId ? getComboInstancesForCatalog(previewCatalogId) : [];
+  const previewComboInstances = previewCatalogId && previewTenant 
+    ? getComboInstancesForTenant(previewTenant.id, previewCatalogId) 
+    : [];
   
   // Reset currency selector when tenant changes
   useEffect(() => {

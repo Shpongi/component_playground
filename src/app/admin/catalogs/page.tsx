@@ -9,77 +9,278 @@ function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: T
   const {
     tenantCatalogFeatureFlags,
     setTenantCatalogFeatureFlag,
-    setTenantCatalogStoreDiscount,
-    tenantCatalogStoreDiscounts,
-    setTenantCatalogStoreVisibility,
-    tenantCatalogHiddenStores,
-    updateTenantCatalogStoreOrder,
-    tenantCatalogStoreOrder,
+    tenantCatalogSelectedEvent,
+    setTenantCatalogSelectedEvent,
+    createTenantCatalogEvent,
+    deleteTenantCatalogEvent,
+    getTenantCatalogEvents,
     getEffectiveCatalogForTenant
   } = useAdminData();
   
+  const events = getTenantCatalogEvents(tenant.id, catalogId);
+  const selectedEventId = tenantCatalogSelectedEvent[tenant.id]?.[catalogId] || 'default';
+  const [newEventName, setNewEventName] = useState("");
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [eventNameError, setEventNameError] = useState("");
+  
   const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalogId] || {};
-  const hasAnyFeature = flags.discounts || flags.visibility || flags.order;
+  const hasAnyFeature = flags.discounts || flags.order || flags.stores || flags.forceSupplier;
+
+  const handleCreateEvent = () => {
+    const trimmedName = newEventName.trim();
+    if (!trimmedName) {
+      setEventNameError("Event name cannot be empty");
+      return;
+    }
+    
+    // Check if event name already exists (case-insensitive)
+    const nameExists = events.some(event => 
+      event.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    
+    if (nameExists) {
+      setEventNameError("An event with this name already exists");
+      return;
+    }
+    
+    // Clear any previous error
+    setEventNameError("");
+    createTenantCatalogEvent(tenant.id, catalogId, trimmedName);
+    setNewEventName("");
+    setShowCreateEvent(false);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    if (confirm(`Are you sure you want to delete this event? All configurations (discounts, stores, order) for this event will be removed.`)) {
+      deleteTenantCatalogEvent(tenant.id, catalogId, eventId);
+    }
+  };
+  
+  const enabledFeaturesCount = [
+    flags.discounts,
+    flags.order,
+    flags.stores,
+    flags.forceSupplier
+  ].filter(Boolean).length;
+  
+  const handleRemoveTenant = () => {
+    if (confirm(`Are you sure you want to remove "${tenant.name}" from Tenant-Specific Features? All customizations will be lost.`)) {
+      // Disable all features to effectively remove the tenant
+      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'discounts', false);
+      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'order', false);
+      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'stores', false);
+      setTenantCatalogFeatureFlag(tenant.id, catalogId, 'forceSupplier', false);
+    }
+  };
   
   return (
-    <div className="bg-white rounded border border-gray-200 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="font-medium text-sm text-gray-800">{tenant.name}</div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1 cursor-pointer">
+    <div className="bg-white rounded-lg border-2 border-gray-300 shadow-sm hover:shadow-md transition-shadow">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-4 py-3 rounded-t-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+              {tenant.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="font-semibold text-base text-gray-900">{tenant.name}</div>
+              <div className="text-xs text-gray-600">{tenant.country}</div>
+            </div>
+            {enabledFeaturesCount > 0 && (
+              <div className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                {enabledFeaturesCount} {enabledFeaturesCount === 1 ? 'feature' : 'features'} enabled
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleRemoveTenant}
+            className="px-3 py-1.5 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-xs font-medium border border-red-200 transition-colors"
+            title="Remove tenant from features"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+      
+      {/* Event Selector */}
+      <div className="px-4 py-3 border-b border-gray-200 bg-purple-50">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Event</label>
+          {!showCreateEvent && (
+            <button
+              onClick={() => setShowCreateEvent(true)}
+              className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 font-medium"
+            >
+              + New Event
+            </button>
+          )}
+        </div>
+        
+        {showCreateEvent && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newEventName}
+                onChange={(e) => {
+                  setNewEventName(e.target.value);
+                  setEventNameError(""); // Clear error when user types
+                }}
+                placeholder="Event name..."
+                className={`flex-1 px-2 py-1 text-xs border rounded ${
+                  eventNameError 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}
+                onKeyPress={(e) => e.key === 'Enter' && handleCreateEvent()}
+              />
+              <button
+                onClick={handleCreateEvent}
+                className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+              >
+                Create
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateEvent(false);
+                  setNewEventName("");
+                  setEventNameError("");
+                }}
+                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+            {eventNameError && (
+              <div className="mt-1 text-xs text-red-600">
+                {eventNameError}
+              </div>
+            )}
+          </div>
+        )}
+        
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedEventId}
+            onChange={(e) => setTenantCatalogSelectedEvent(tenant.id, catalogId, e.target.value)}
+            className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded bg-white"
+          >
+            {events.map(event => (
+              <option key={event.id} value={event.id}>
+                {event.name}
+              </option>
+            ))}
+          </select>
+          
+          {selectedEventId !== 'default' && (
+            <button
+              onClick={() => handleDeleteEvent(selectedEventId)}
+              className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+        <div className="mt-1 text-xs text-gray-600">
+          Each event can have its own discounts, stores, and order configuration.
+        </div>
+      </div>
+      
+      {/* Feature Toggles */}
+      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+        <div className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Feature Toggles</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-white transition-colors">
             <input
               type="checkbox"
               checked={flags.discounts || false}
               onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'discounts', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600"
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <span className="text-xs text-gray-600">Discounts</span>
+            <span className="text-sm text-gray-700 font-medium">Discounts</span>
+            {flags.discounts && <span className="ml-auto w-2 h-2 bg-green-500 rounded-full"></span>}
           </label>
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={flags.visibility || false}
-              onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'visibility', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600"
-            />
-            <span className="text-xs text-gray-600">Visibility</span>
-          </label>
-          <label className="flex items-center gap-1 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-white transition-colors">
             <input
               type="checkbox"
               checked={flags.order || false}
               onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'order', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600"
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <span className="text-xs text-gray-600">Order</span>
+            <span className="text-sm text-gray-700 font-medium">Order</span>
+            {flags.order && <span className="ml-auto w-2 h-2 bg-green-500 rounded-full"></span>}
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-white transition-colors">
+            <input
+              type="checkbox"
+              checked={flags.stores || false}
+              onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'stores', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700 font-medium">Stores</span>
+            {flags.stores && <span className="ml-auto w-2 h-2 bg-green-500 rounded-full"></span>}
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-white transition-colors">
+            <input
+              type="checkbox"
+              checked={flags.forceSupplier || false}
+              onChange={(e) => setTenantCatalogFeatureFlag(tenant.id, catalogId, 'forceSupplier', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700 font-medium">Force Supplier</span>
+            {flags.forceSupplier && <span className="ml-auto w-2 h-2 bg-green-500 rounded-full"></span>}
           </label>
         </div>
       </div>
       
-      {!hasAnyFeature && (
-        <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded border border-gray-200">
-          Enable features above to customize this tenant's catalog settings.
-        </div>
-      )}
-      
-      {flags.discounts && (
-        <TenantCatalogDiscountsSection tenant={tenant} catalogId={catalogId} stores={stores} />
-      )}
-      
-      {flags.visibility && (
-        <TenantCatalogVisibilitySection tenant={tenant} catalogId={catalogId} stores={stores} />
-      )}
-      
-      {flags.order && (
-        <TenantCatalogOrderSection tenant={tenant} catalogId={catalogId} />
-      )}
+      {/* Feature Sections */}
+      <div className="p-4 space-y-3">
+        {!hasAnyFeature && (
+          <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <div className="text-sm text-gray-500 mb-1">No features enabled</div>
+            <div className="text-xs text-gray-400">Enable features above to customize this tenant's catalog settings</div>
+          </div>
+        )}
+        
+        {flags.discounts && (
+          <div className="border-l-4 border-blue-500 pl-3">
+            <TenantCatalogDiscountsSection tenant={tenant} catalogId={catalogId} eventId={selectedEventId} stores={stores} />
+          </div>
+        )}
+        
+        {flags.order && (
+          <div className="border-l-4 border-purple-500 pl-3">
+            <TenantCatalogOrderSection tenant={tenant} catalogId={catalogId} eventId={selectedEventId} />
+          </div>
+        )}
+        
+        {flags.stores && (
+          <div className="border-l-4 border-orange-500 pl-3">
+            <TenantCatalogStoresSection tenant={tenant} catalogId={catalogId} eventId={selectedEventId} />
+          </div>
+        )}
+        
+        {flags.forceSupplier && (
+          <div className="border-l-4 border-red-500 pl-3">
+            <TenantCatalogForceSupplierSection tenant={tenant} catalogId={catalogId} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function TenantCatalogDiscountsSection({ tenant, catalogId, stores }: { tenant: Tenant; catalogId: string; stores: Store[] }) {
-  const { tenantCatalogStoreDiscounts, setTenantCatalogStoreDiscount } = useAdminData();
-  const catalogDiscounts = tenantCatalogStoreDiscounts[tenant.id]?.[catalogId] || {};
+function TenantCatalogDiscountsSection({ tenant, catalogId, eventId, stores }: { tenant: Tenant; catalogId: string; eventId: string; stores: Store[] }) {
+  const { 
+    tenantCatalogEvents, 
+    setTenantCatalogStoreDiscount
+  } = useAdminData();
+  
+  const catalogEvents = tenantCatalogEvents[tenant.id]?.[catalogId] || {};
+  // If event doesn't exist yet (especially default), use empty structure
+  // It will be created automatically when first discount is set
+  const eventData = catalogEvents[eventId] || { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+  const catalogDiscounts = eventData.discounts || {};
   const [expanded, setExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -89,6 +290,20 @@ function TenantCatalogDiscountsSection({ tenant, catalogId, stores }: { tenant: 
   const availableStores = tenantStores
     .filter(s => !catalogDiscounts[s.name] || catalogDiscounts[s.name] === 0)
     .filter(s => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  const handleCreateEvent = () => {
+    if (newEventName.trim()) {
+      createTenantCatalogEvent(tenant.id, catalogId, newEventName.trim());
+      setNewEventName("");
+      setShowCreateEvent(false);
+    }
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    if (confirm(`Are you sure you want to delete this event? All discounts for this event will be removed.`)) {
+      deleteTenantCatalogEvent(tenant.id, catalogId, eventId);
+    }
+  };
   
   return (
     <div className="expandable-section mt-2">
@@ -113,12 +328,12 @@ function TenantCatalogDiscountsSection({ tenant, catalogId, stores }: { tenant: 
                       min={0}
                       max={100}
                       value={catalogDiscounts[storeName]}
-                      onChange={(e) => setTenantCatalogStoreDiscount(tenant.id, catalogId, storeName, parseInt(e.target.value || '0', 10))}
+                      onChange={(e) => setTenantCatalogStoreDiscount(tenant.id, catalogId, eventId, storeName, parseInt(e.target.value || '0', 10))}
                       className="input-sm w-20 h-7"
                     />
                     <span className="text-xs text-gray-500">%</span>
                     <button
-                      onClick={() => setTenantCatalogStoreDiscount(tenant.id, catalogId, storeName, 0)}
+                      onClick={() => setTenantCatalogStoreDiscount(tenant.id, catalogId, eventId, storeName, 0)}
                       className="text-red-600 hover:text-red-800 text-xs font-medium"
                     >
                       ×
@@ -143,7 +358,7 @@ function TenantCatalogDiscountsSection({ tenant, catalogId, stores }: { tenant: 
                   <button
                     key={store.name}
                     onClick={() => {
-                      setTenantCatalogStoreDiscount(tenant.id, catalogId, store.name, 5);
+                      setTenantCatalogStoreDiscount(tenant.id, catalogId, eventId, store.name, 5);
                       setSearchQuery("");
                     }}
                     className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
@@ -160,84 +375,13 @@ function TenantCatalogDiscountsSection({ tenant, catalogId, stores }: { tenant: 
   );
 }
 
-function TenantCatalogVisibilitySection({ tenant, catalogId, stores }: { tenant: Tenant; catalogId: string; stores: Store[] }) {
-  const { tenantCatalogHiddenStores, setTenantCatalogStoreVisibility } = useAdminData();
-  const hiddenStores = tenantCatalogHiddenStores[tenant.id]?.[catalogId] || new Set<string>();
+function TenantCatalogOrderSection({ tenant, catalogId, eventId }: { tenant: Tenant; catalogId: string; eventId: string }) {
+  const { getEffectiveCatalogForTenant, updateTenantCatalogStoreOrder, tenantCatalogEvents } = useAdminData();
   const [expanded, setExpanded] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  
-  const tenantStores = stores.filter(s => s.country === tenant.country);
-  const hiddenStoresList = Array.from(hiddenStores);
-  const availableStores = tenantStores
-    .filter(s => !hiddenStores.has(s.name))
-    .filter(s => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  
-  return (
-    <div className="expandable-section mt-2">
-      <button onClick={() => setExpanded(!expanded)} className="expandable-header">
-        <span>Store Visibility</span>
-        {hiddenStores.size > 0 && <span className="badge badge-danger text-[10px]">{hiddenStores.size} hidden</span>}
-        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="expandable-content">
-          {hiddenStoresList.length > 0 && (
-            <div className="mb-4">
-              <div className="text-xs font-medium text-gray-700 mb-2">Hidden Stores ({hiddenStoresList.length})</div>
-              <div className="flex flex-wrap gap-2">
-                {hiddenStoresList.map(storeName => (
-                  <div key={storeName} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-md">
-                    <span className="text-xs text-gray-700">{storeName}</span>
-                    <button
-                      onClick={() => setTenantCatalogStoreVisibility(tenant.id, catalogId, storeName, false)}
-                      className="text-red-600 hover:text-red-800 text-xs font-medium"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div>
-            <div className="text-xs font-medium text-gray-700 mb-2">Add Store to Hide</div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search stores..."
-              className="input input-sm mb-2"
-            />
-            {searchQuery && availableStores.length > 0 && (
-              <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white">
-                {availableStores.map(store => (
-                  <button
-                    key={store.name}
-                    onClick={() => {
-                      setTenantCatalogStoreVisibility(tenant.id, catalogId, store.name, true);
-                      setSearchQuery("");
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                  >
-                    {store.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TenantCatalogOrderSection({ tenant, catalogId }: { tenant: Tenant; catalogId: string }) {
-  const { getEffectiveCatalogForTenant, updateTenantCatalogStoreOrder, tenantCatalogStoreOrder } = useAdminData();
-  const [expanded, setExpanded] = useState(false);
-  const customOrder = tenantCatalogStoreOrder[tenant.id]?.[catalogId];
-  const hasCustomOrder = customOrder && customOrder.length > 0;
+  const catalogEvents = tenantCatalogEvents[tenant.id]?.[catalogId] || {};
+  const eventData = catalogEvents[eventId] || { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+  const customOrder = eventData.order || [];
+  const hasCustomOrder = customOrder.length > 0;
   
   const effectiveCatalog = getEffectiveCatalogForTenant(tenant.id, catalogId);
   const currentStoreOrder = effectiveCatalog.stores.map(s => s.name);
@@ -251,11 +395,11 @@ function TenantCatalogOrderSection({ tenant, catalogId }: { tenant: Tenant; cata
     if (newIndex < 0 || newIndex >= order.length) return;
     
     [order[index], order[newIndex]] = [order[newIndex], order[index]];
-    updateTenantCatalogStoreOrder(tenant.id, catalogId, order);
+    updateTenantCatalogStoreOrder(tenant.id, catalogId, eventId, order);
   };
   
   const handleResetOrder = () => {
-    updateTenantCatalogStoreOrder(tenant.id, catalogId, []);
+    updateTenantCatalogStoreOrder(tenant.id, catalogId, eventId, []);
   };
   
   return (
@@ -303,6 +447,219 @@ function TenantCatalogOrderSection({ tenant, catalogId }: { tenant: Tenant; cata
   );
 }
 
+function TenantCatalogStoresSection({ tenant, catalogId, eventId }: { tenant: Tenant; catalogId: string; eventId: string }) {
+  const {
+    getEffectiveCatalog,
+    comboInstances,
+    getComboInstancesForCatalog,
+    tenantCatalogEvents,
+    addTenantCatalogStore,
+    removeTenantCatalogStore,
+    addTenantCatalogComboInstance,
+    removeTenantCatalogComboInstance,
+    stores,
+    catalogs
+  } = useAdminData();
+  
+  const [expanded, setExpanded] = useState(false);
+  const catalog = getEffectiveCatalog(catalogId);
+  const catalogComboInstances = getComboInstancesForCatalog(catalogId);
+  const catalogEvents = tenantCatalogEvents[tenant.id]?.[catalogId] || {};
+  // If event doesn't exist yet (especially default), use empty structure
+  // It will be created automatically when first store is added
+  const eventData = catalogEvents[eventId] || { discounts: {}, stores: { stores: [], comboInstances: [] }, order: [] };
+  const tenantStoresRaw = eventData.stores;
+  
+  // Ensure we always have valid arrays, filter out any invalid entries
+  // Also filter out stores/combo instances that no longer exist in the catalog
+  const tenantStores = {
+    stores: Array.isArray(tenantStoresRaw?.stores) 
+      ? tenantStoresRaw.stores.filter(Boolean).filter(storeName => 
+          catalog.stores.some(s => s.name === storeName)
+        )
+      : [],
+    comboInstances: Array.isArray(tenantStoresRaw?.comboInstances) 
+      ? tenantStoresRaw.comboInstances.filter(Boolean).filter(comboInstanceId => 
+          catalogComboInstances.some(ci => ci.id === comboInstanceId)
+        )
+      : []
+  };
+  
+  // Get available stores (stores in catalog but not in tenant's list)
+  const availableStores = catalog.stores.filter(store => !tenantStores.stores.includes(store.name));
+  
+  // Get available combo instances (combo instances in catalog but not in tenant's list)
+  const availableComboInstances = catalogComboInstances.filter(ci => !tenantStores.comboInstances.includes(ci.id));
+  
+  return (
+    <div className="expandable-section mt-2">
+      <button onClick={() => setExpanded(!expanded)} className="expandable-header">
+        <span>Stores & Combos</span>
+        <span className="badge badge-primary text-[10px]">
+          {tenantStores.stores.length + tenantStores.comboInstances.length} / {catalog.stores.length + catalogComboInstances.length}
+        </span>
+        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="expandable-content">
+          {/* Current Stores & Combos */}
+          <div className="mb-4">
+            <div className="text-xs font-medium text-gray-700 mb-2">
+              Current Stores & Combos ({tenantStores.stores.length + tenantStores.comboInstances.length})
+            </div>
+            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded bg-white p-2 space-y-1">
+              {/* Regular Stores */}
+              {tenantStores.stores.map(storeName => {
+                const store = catalog.stores.find(s => s.name === storeName);
+                if (!store) return null;
+                return (
+                  <div key={`tenant-store-${tenant.id}-${catalogId}-${storeName}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                    <span className="font-medium text-gray-700">{storeName}</span>
+                    <button
+                      onClick={() => removeTenantCatalogStore(tenant.id, catalogId, eventId, storeName)}
+                      className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+              {/* Combo Instances */}
+              {tenantStores.comboInstances.map(comboInstanceId => {
+                const comboInstance = catalogComboInstances.find(ci => ci.id === comboInstanceId);
+                if (!comboInstance) return null;
+                return (
+                  <div key={`tenant-combo-${tenant.id}-${catalogId}-${comboInstanceId}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">{comboInstance.displayName}</span>
+                      <span className="px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">Combo</span>
+                    </div>
+                    <button
+                      onClick={() => removeTenantCatalogComboInstance(tenant.id, catalogId, eventId, comboInstanceId)}
+                      className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+              {tenantStores.stores.length === 0 && tenantStores.comboInstances.length === 0 && (
+                <div className="text-xs text-gray-500 text-center py-2">
+                  No stores or combos assigned. Add them below.
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Available Stores & Combos */}
+          {(availableStores.length > 0 || availableComboInstances.length > 0) && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-medium text-gray-700">
+                  Available Stores & Combos ({availableStores.length + availableComboInstances.length})
+                </div>
+                <button
+                  onClick={() => {
+                    // Add all available stores
+                    availableStores.forEach(store => {
+                      addTenantCatalogStore(tenant.id, catalogId, eventId, store.name);
+                    });
+                    // Add all available combo instances
+                    availableComboInstances.forEach(comboInstance => {
+                      addTenantCatalogComboInstance(tenant.id, catalogId, eventId, comboInstance.id);
+                    });
+                  }}
+                  className="px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 text-xs font-medium"
+                >
+                  Add All
+                </button>
+              </div>
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded bg-white p-2 space-y-1">
+                {/* Regular Stores */}
+                {availableStores.map(store => (
+                  <div key={`available-store-${tenant.id}-${catalogId}-${store.name}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                    <span className="font-medium text-gray-700">{store.name}</span>
+                    <button
+                      onClick={() => addTenantCatalogStore(tenant.id, catalogId, store.name)}
+                      className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))}
+                {/* Combo Instances */}
+                {availableComboInstances.map(comboInstance => (
+                  <div key={`available-combo-${tenant.id}-${catalogId}-${comboInstance.id}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">{comboInstance.displayName}</span>
+                      <span className="px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">Combo</span>
+                    </div>
+                    <button
+                      onClick={() => addTenantCatalogComboInstance(tenant.id, catalogId, comboInstance.id)}
+                      className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TenantCatalogForceSupplierSection({ tenant, catalogId }: { tenant: Tenant; catalogId: string }) {
+  const {
+    tenantCatalogForcedSupplier,
+    setTenantCatalogForcedSupplier
+  } = useAdminData();
+  
+  const forcedSupplier = tenantCatalogForcedSupplier[tenant.id]?.[catalogId] ?? null;
+  
+  return (
+    <div className="expandable-section mt-2">
+      <div className="bg-blue-50 border border-blue-200 rounded p-3">
+        <div className="text-xs font-medium text-blue-800 mb-2">
+          Force Supplier
+        </div>
+        <div className="text-xs text-blue-700 mb-3">
+          This tenant will only be able to select stores from the selected supplier.
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Select Supplier
+          </label>
+          <select
+            value={forcedSupplier ?? ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              setTenantCatalogForcedSupplier(tenant.id, catalogId, value === "" ? null : parseInt(value));
+            }}
+            className="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+          >
+            <option value="">No supplier forced</option>
+            <option value="1">Supplier 1</option>
+            <option value="2">Supplier 2</option>
+            <option value="3">Supplier 3</option>
+            <option value="4">Supplier 4</option>
+            <option value="5">Supplier 5</option>
+          </select>
+        </div>
+        {forcedSupplier !== null && (
+          <div className="mt-2 text-xs text-blue-700">
+            Tenant will only be able to select stores from <strong>Supplier {forcedSupplier}</strong> selected.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CatalogsPage() {
   const { 
     catalogs, 
@@ -312,6 +669,11 @@ export default function CatalogsPage() {
     masterCombos,
     getMasterCombo,
     removeStoreFromCatalog, 
+    addStoreToCatalog,
+    createComboInstance,
+    getComboInstancesForCatalog,
+    deleteComboInstance,
+    comboInstances,
     setStoreDiscount, 
     setStoreCSS, 
     setStoreFee, 
@@ -322,13 +684,14 @@ export default function CatalogsPage() {
     tenants,
     setTenantCatalogStoreDiscount,
     tenantCatalogStoreDiscounts,
-    setTenantCatalogStoreVisibility,
-    tenantCatalogHiddenStores,
     updateTenantCatalogStoreOrder,
     tenantCatalogStoreOrder,
     tenantCatalogFeatureFlags,
     setTenantCatalogFeatureFlag,
-    getEffectiveCatalogForTenant
+    getEffectiveCatalogForTenant,
+    activeCatalogByTenant,
+    isStoreActive,
+    storeSuppliers
   } = useAdminData();
   const [expandedStores, setExpandedStores] = useState<Record<string, boolean>>({});
   const [storeSettingsOpen, setStoreSettingsOpen] = useState<Record<string, boolean>>({});
@@ -408,9 +771,13 @@ export default function CatalogsPage() {
         {catalogList.map((catalog) => {
           const effectiveCatalog = getEffectiveCatalog(catalog.id);
           const isCatalogExpanded = expandedCatalogs[catalog.id] === true; // USD expanded by default, others closed
+          const isActiveCatalog = Object.values(activeCatalogByTenant).includes(catalog.id);
+          // Get total stores count (including inactive) from the base catalog
+          const totalStoresCount = catalog.stores.length;
+          const activeStoresCount = effectiveCatalog.stores.length;
           
           return (
-            <div key={catalog.id} className="border border-gray-200 rounded-lg bg-white">
+            <div key={catalog.id} className={`border rounded-lg bg-white ${isActiveCatalog ? 'border-blue-500 border-2' : 'border-gray-200'}`}>
               {/* Catalog Header */}
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
@@ -431,23 +798,38 @@ export default function CatalogsPage() {
                     </button>
                     <div className="flex items-center gap-2">
                       <h3 className="text-lg font-semibold">{catalog.name}</h3>
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                        {effectiveCatalog.stores.length} stores
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded" title={`${activeStoresCount} active out of ${totalStoresCount} total stores`}>
+                        {activeStoresCount} / {totalStoresCount} stores
                       </span>
                       <span className="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded">
                         {getTenantsForCatalog(catalog.id).length} tenants
                       </span>
+                      {isActiveCatalog && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded font-medium">
+                          Active
+                        </span>
+                      )}
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!effectiveCatalog.catalogFee && (
+                      <button
+                        onClick={() => setCatalogFee(catalog.id, { type: 'percentage', value: 5 })}
+                        className="px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
+                      >
+                        + Add Catalog-Level Discount
+                      </button>
+                    )}
                   </div>
                 </div>
                 
                 {/* Catalog Content - Only show when expanded */}
                 {isCatalogExpanded && (
                   <>
-                    {/* Catalog-level Fee */}
-                    {effectiveCatalog.catalogFee ? (
+                    {/* Catalog-level Discount */}
+                    {effectiveCatalog.catalogFee && (
                       <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Catalog-Level Fee</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Catalog-Level Discount</label>
                         <div className="flex items-center gap-3">
                           <select
                             value={effectiveCatalog.catalogFee.type}
@@ -486,20 +868,327 @@ export default function CatalogsPage() {
                             onClick={() => setCatalogFee(catalog.id, null)}
                             className="ml-auto px-2 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
                           >
-                            Remove Fee
+                            Remove Discount
                           </button>
                         </div>
                       </div>
-                    ) : (
-                      <div className="mt-3">
-                        <button
-                          onClick={() => setCatalogFee(catalog.id, { type: 'percentage', value: 5 })}
-                          className="px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
-                        >
-                          + Add Catalog-Level Fee
-                        </button>
-                      </div>
                     )}
+
+                {/* Manage Stores Section */}
+                <div className="mt-3 p-3 bg-gray-50 rounded border">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-800">Manage Stores</h4>
+                    <button
+                      onClick={() => toggleStoresExpansion(catalog.id)}
+                      className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    >
+                      {expandedStores[catalog.id] ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {expandedStores[catalog.id] && (
+                    <div className="mt-2 space-y-3">
+                      {/* Current stores (effective for base == own stores) */}
+                      <div>
+                        {(() => {
+                          const catalogComboInstances = getComboInstancesForCatalog(catalog.id);
+                          const totalStores = (effectiveCatalogs[catalog.id]?.stores.length || 0) + catalogComboInstances.length;
+                          
+                          return (
+                            <>
+                              <div className="text-xs font-medium text-gray-700 mb-1">
+                                Current Stores ({totalStores})
+                              </div>
+                              <div className="max-h-44 overflow-y-auto border border-gray-200 rounded bg-white p-2">
+                                <div className="space-y-1">
+                                  {/* Combo Instances */}
+                                  {catalogComboInstances.map((comboInstance) => (
+                                    <div key={`combo-instance-${catalog.id}-${comboInstance.id}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium">{comboInstance.displayName}</span>
+                                          <span className="px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">Combo</span>
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            if (confirm(`Are you sure you want to remove "${comboInstance.displayName}" from this catalog?`)) {
+                                              deleteComboInstance(comboInstance.id);
+                                            }
+                                          }}
+                                          className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {/* Regular stores */}
+                                  {(effectiveCatalogs[catalog.id]?.stores || []).map((store, index) => {
+                                    const effective = effectiveCatalogs[catalog.id];
+                                    const currentDiscount = effective.storeDiscounts[store.name] || 0;
+                                    const currentCSS = effective.storeCSS[store.name] || "";
+                                    const key = settingsKey(catalog.id, store.name);
+                                    const open = !!storeSettingsOpen[key];
+                                    return (
+                                      <div key={`${catalog.id}-${store.name}-${index}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
+                                        <div className="flex items-center justify-between text-xs">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium">{store.name}</span>
+                                            {currentDiscount > 0 && (
+                                              <span className="px-1 py-0.5 bg-green-100 text-green-800 rounded text-[10px]">{currentDiscount}% off</span>
+                                            )}
+                                            {currentCSS && (
+                                              <span className="px-1 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px]">CSS</span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => moveStoreInCatalog(catalog.id, store.name, 'up')}
+                                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                                              title="Move up"
+                                            >▲</button>
+                                            <button
+                                              onClick={() => moveStoreInCatalog(catalog.id, store.name, 'down')}
+                                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                                              title="Move down"
+                                            >▼</button>
+                                            <button
+                                              onClick={() => setStoreSettingsOpen(prev => ({ ...prev, [key]: !open }))}
+                                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                                            >
+                                              {open ? 'Hide' : 'Configure'}
+                                            </button>
+                                            <button
+                                              onClick={() => removeStoreFromCatalog(catalog.id, store.name)}
+                                              className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        </div>
+                                        {open && (
+                                          <>
+                                            {/* Supplier Availability */}
+                                            <div className="mb-2">
+                                              <label className="block text-[11px] text-gray-600 mb-1">Supplier Availability</label>
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                {[1, 2, 3, 4, 5].map(supplierId => {
+                                                  const storeKey = `${store.country}-${store.name}`;
+                                                  const supplierData = storeSuppliers[storeKey];
+                                                  const offeringSuppliers = supplierData?.offeringSuppliers || [1, 2, 3, 4, 5];
+                                                  const isAvailable = offeringSuppliers.includes(supplierId);
+                                                  
+                                                  return (
+                                                    <div key={supplierId} className="flex items-center gap-1">
+                                                      <span className="text-[10px] text-gray-500">S{supplierId}:</span>
+                                                      <span className={`text-[10px] font-medium ${isAvailable ? 'text-green-600' : 'text-gray-400'}`}>
+                                                        {isAvailable ? 'Available' : 'N/A'}
+                                                      </span>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <label className="text-[11px] text-gray-600">Discount %</label>
+                                              <input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={currentDiscount}
+                                                onChange={(e) => setStoreDiscount(catalog.id, store.name, parseInt(e.target.value || '0', 10))}
+                                                className="w-16 h-6 text-xs border border-gray-200 rounded px-1"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[11px] text-gray-600 mb-1">Custom CSS (JSON)</label>
+                                              <textarea
+                                                className="w-full text-[11px] border border-gray-200 rounded p-1 bg-white"
+                                                rows={2}
+                                                placeholder='{"backgroundColor":"#f0f0f0"}'
+                                                value={(() => { try { return currentCSS; } catch { return ""; } })()}
+                                                onChange={(e) => setStoreCSS(catalog.id, store.name, e.target.value)}
+                                              />
+                                            </div>
+                                            {effective.storeFees[store.name] ? (
+                                              <div>
+                                                <label className="block text-[11px] text-gray-600 mb-1">Additional Fee</label>
+                                                <div className="flex items-center gap-2">
+                                                  <select
+                                                    value={effective.storeFees[store.name].type}
+                                                    onChange={(e) => {
+                                                      setStoreFee(catalog.id, store.name, {
+                                                        type: e.target.value as FeeType,
+                                                        value: effective.storeFees[store.name].value
+                                                      });
+                                                    }}
+                                                    className="text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                                  >
+                                                    <option value="percentage">%</option>
+                                                    <option value="fixed">Fixed</option>
+                                                  </select>
+                                                  <input
+                                                    type="number"
+                                                    min={0}
+                                                    step={effective.storeFees[store.name].type === 'percentage' ? 0.1 : 1}
+                                                    value={effective.storeFees[store.name].value}
+                                                    onChange={(e) => {
+                                                      const value = parseFloat(e.target.value) || 0;
+                                                      if (value === 0) {
+                                                        setStoreFee(catalog.id, store.name, null);
+                                                      } else {
+                                                        setStoreFee(catalog.id, store.name, { type: effective.storeFees[store.name].type, value });
+                                                      }
+                                                    }}
+                                                    className="flex-1 h-6 text-xs border border-gray-200 rounded px-1"
+                                                  />
+                                                  <span className="px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded text-[10px]">
+                                                    {effective.storeFees[store.name].type === 'percentage' 
+                                                      ? `+${effective.storeFees[store.name].value}%` 
+                                                      : `+${effective.storeFees[store.name].value}`}
+                                                  </span>
+                                                  <button
+                                                    onClick={() => setStoreFee(catalog.id, store.name, null)}
+                                                    className="px-1 py-0.5 bg-red-100 text-red-800 text-[10px] rounded hover:bg-red-200"
+                                                  >
+                                                    Remove
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div>
+                                                <button
+                                                  onClick={() => setStoreFee(catalog.id, store.name, { type: 'percentage', value: 5 })}
+                                                  className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[11px] rounded hover:bg-yellow-200"
+                                                >
+                                                  + Add Fee
+                                                </button>
+                                              </div>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      
+                      {/* Available stores not in catalog */}
+                      {(() => {
+                        const effective = effectiveCatalogs[catalog.id];
+                        const storesInCatalog = new Set(effective?.stores.map(s => s.name) || []);
+                        
+                        // Get available regular stores
+                        const availableStores = stores
+                          .filter(s => s.country === catalog.country && isStoreActive(s.name, s.country))
+                          .filter(s => !storesInCatalog.has(s.name));
+                        
+                        // Get available Default Combo Cards (matching currency)
+                        // Check if combo instance already exists for this catalog
+                        const existingComboInstances = getComboInstancesForCatalog(catalog.id);
+                        const existingMasterComboIds = new Set(existingComboInstances.map(ci => ci.masterComboId).filter(Boolean));
+                        const existingComboInstanceNames = new Set(existingComboInstances.map(ci => ci.displayName));
+                        
+                        const availableDefaultCombos = masterCombos
+                          .filter(mc => mc.name === "Default Combo Card" && mc.currency === catalog.currency && mc.isActive)
+                          .filter(mc => !existingMasterComboIds.has(mc.id));
+                        
+                        // Get available combo instances from other catalogs (same currency) that can be added to this catalog
+                        const availableComboInstances = comboInstances
+                          .filter(ci => {
+                            const ciCatalog = catalogs.find(c => c.id === ci.catalogId);
+                            return ciCatalog && 
+                                   ciCatalog.currency === catalog.currency && 
+                                   ci.catalogId !== catalog.id &&
+                                   !existingComboInstanceNames.has(ci.displayName) &&
+                                   ci.isActive;
+                          });
+                        
+                        const totalAvailable = availableStores.length + availableDefaultCombos.length + availableComboInstances.length;
+                        
+                        if (totalAvailable === 0) return null;
+                        
+                        return (
+                          <div>
+                            <div className="text-xs font-medium text-gray-700 mb-1">
+                              Available Stores ({totalAvailable})
+                            </div>
+                            <div className="max-h-44 overflow-y-auto border border-gray-200 rounded bg-white p-2">
+                              <div className="space-y-1">
+                                {/* Existing Combo Instances from other catalogs */}
+                                {availableComboInstances.map((comboInstance) => (
+                                  <div key={`available-combo-instance-${catalog.id}-${comboInstance.id}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-700">{comboInstance.displayName}</span>
+                                      <span className="px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px]">Combo</span>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        // Create a new combo instance for this catalog based on the existing one
+                                        createComboInstance({
+                                          catalogId: catalog.id,
+                                          masterComboId: comboInstance.masterComboId,
+                                          displayName: comboInstance.displayName,
+                                          customStoreNames: comboInstance.customStoreNames,
+                                          imageUrl: comboInstance.imageUrl,
+                                          denominations: comboInstance.denominations,
+                                          isActive: comboInstance.isActive,
+                                        });
+                                      }}
+                                      className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-xs"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                ))}
+                                {/* Default Combo Cards */}
+                                {availableDefaultCombos.map((combo) => (
+                                  <div key={`available-combo-${catalog.id}-${combo.id}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-700">{combo.name}</span>
+                                      <span className="px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px]">Default Combo</span>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        // Create a combo instance for this catalog
+                                        createComboInstance({
+                                          catalogId: catalog.id,
+                                          masterComboId: combo.id,
+                                          displayName: combo.name,
+                                          customStoreNames: null,
+                                          denominations: [25, 50, 100],
+                                          isActive: true,
+                                        });
+                                      }}
+                                      className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-xs"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                ))}
+                                {/* Regular stores */}
+                                {availableStores.map((store) => (
+                                  <div key={`available-${catalog.id}-${store.name}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
+                                    <span className="font-medium text-gray-700">{store.name}</span>
+                                    <button
+                                      onClick={() => addStoreToCatalog(catalog.id, store.name)}
+                                      className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-xs"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
 
                 {/* Tenant-Specific Features Section */}
                 <div className="mt-3 p-3 bg-blue-50 rounded border">
@@ -507,11 +1196,40 @@ export default function CatalogsPage() {
                     <h4 className="text-sm font-medium text-blue-800">Tenant-Specific Features</h4>
                   </div>
                   <div className="text-xs text-gray-600 mb-3">
-                    Configure discounts, visibility, and store order for specific tenants using this catalog.
+                    Configure discounts, store order, stores, and supplier settings for specific tenants using this catalog.
                   </div>
                   
+                  {/* Tenants with Features Enabled */}
+                  {(() => {
+                    const tenantsWithFeatures = getTenantsForCatalog(catalog.id).filter(tenant => {
+                      const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalog.id];
+                      return flags && (flags.discounts || flags.order || flags.stores || flags.forceSupplier);
+                    });
+                    
+                    if (tenantsWithFeatures.length === 0) {
+                      return (
+                        <div className="text-xs text-gray-500 p-2 bg-white rounded border border-gray-200 mb-3">
+                          No tenants with features enabled. Add a tenant below to configure features.
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="space-y-4 mb-3">
+                        {tenantsWithFeatures.map(tenant => (
+                          <TenantCatalogFeaturesSection
+                            key={tenant.id}
+                            tenant={tenant}
+                            catalogId={catalog.id}
+                            stores={stores}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  
                   {/* Add Tenant to Features */}
-                  <div className="mb-3">
+                  <div>
                     <div className="text-xs font-medium text-gray-700 mb-2">Add Tenant</div>
                     <div className="flex items-center gap-2">
                       <select
@@ -523,9 +1241,9 @@ export default function CatalogsPage() {
                         {tenants
                           .filter(tenant => tenant.country === catalog.country)
                           .filter(tenant => {
-                            // Only show tenants that don't already have features enabled
+                            // Only show tenants that don't already have any features enabled
                             const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalog.id];
-                            return !flags || (!flags.discounts && !flags.visibility && !flags.order);
+                            return !flags || (!flags.discounts && !flags.order && !flags.stores && !flags.forceSupplier);
                           })
                           .map(tenant => (
                             <option key={tenant.id} value={tenant.id}>
@@ -549,188 +1267,6 @@ export default function CatalogsPage() {
                       </button>
                     </div>
                   </div>
-                  
-                  {/* Tenants with Features Enabled */}
-                  {(() => {
-                    const tenantsWithFeatures = getTenantsForCatalog(catalog.id).filter(tenant => {
-                      const flags = tenantCatalogFeatureFlags[tenant.id]?.[catalog.id];
-                      return flags && (flags.discounts || flags.visibility || flags.order);
-                    });
-                    
-                    if (tenantsWithFeatures.length === 0) {
-                      return (
-                        <div className="text-xs text-gray-500 p-2 bg-white rounded border border-gray-200">
-                          No tenants with features enabled. Add a tenant above to configure features.
-                        </div>
-                      );
-                    }
-                    
-                    return (
-                      <div className="space-y-3">
-                        {tenantsWithFeatures.map(tenant => (
-                          <TenantCatalogFeaturesSection
-                            key={tenant.id}
-                            tenant={tenant}
-                            catalogId={catalog.id}
-                            stores={stores}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Manage Stores Section */}
-                <div className="mt-3 p-3 bg-gray-50 rounded border">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium text-gray-800">Manage Stores</h4>
-                    <button
-                      onClick={() => toggleStoresExpansion(catalog.id)}
-                      className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    >
-                      {expandedStores[catalog.id] ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-                  {expandedStores[catalog.id] && (
-                    <div className="mt-2 space-y-3">
-                      {/* Current stores (effective for base == own stores) */}
-                      <div>
-                        <div className="text-xs font-medium text-gray-700 mb-1">
-                          Current Stores ({effectiveCatalogs[catalog.id]?.stores.length || 0})
-                        </div>
-                        <div className="max-h-44 overflow-y-auto border border-gray-200 rounded bg-white p-2">
-                          <div className="space-y-1">
-                            {(effectiveCatalogs[catalog.id]?.stores || []).map((store, index) => {
-                              const effective = effectiveCatalogs[catalog.id];
-                              const currentDiscount = effective.storeDiscounts[store.name] || 0;
-                              const currentCSS = effective.storeCSS[store.name] || "";
-                              const key = settingsKey(catalog.id, store.name);
-                              const open = !!storeSettingsOpen[key];
-                              return (
-                                <div key={`${catalog.id}-${store.name}-${index}`} className="space-y-1 border-b border-gray-100 pb-2 last:border-b-0">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium">{store.name}</span>
-                                      {currentDiscount > 0 && (
-                                        <span className="px-1 py-0.5 bg-green-100 text-green-800 rounded text-[10px]">{currentDiscount}% off</span>
-                                      )}
-                                      {currentCSS && (
-                                        <span className="px-1 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px]">CSS</span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => moveStoreInCatalog(catalog.id, store.name, 'up')}
-                                        className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                                        title="Move up"
-                                      >▲</button>
-                                      <button
-                                        onClick={() => moveStoreInCatalog(catalog.id, store.name, 'down')}
-                                        className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                                        title="Move down"
-                                      >▼</button>
-                                      <button
-                                        onClick={() => setStoreSettingsOpen(prev => ({ ...prev, [key]: !open }))}
-                                        className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                                      >
-                                        {open ? 'Hide' : 'Configure'}
-                                      </button>
-                                      <button
-                                        onClick={() => removeStoreFromCatalog(catalog.id, store.name)}
-                                        className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
-                                      >
-                                        Remove
-                                      </button>
-                                    </div>
-                                  </div>
-                                  {open && (
-                                    <>
-                                      <div className="flex items-center gap-2">
-                                        <label className="text-[11px] text-gray-600">Discount %</label>
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          max={100}
-                                          value={currentDiscount}
-                                          onChange={(e) => setStoreDiscount(catalog.id, store.name, parseInt(e.target.value || '0', 10))}
-                                          className="w-16 h-6 text-xs border border-gray-200 rounded px-1"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-[11px] text-gray-600 mb-1">Custom CSS (JSON)</label>
-                                        <textarea
-                                          className="w-full text-[11px] border border-gray-200 rounded p-1 bg-white"
-                                          rows={2}
-                                          placeholder='{"backgroundColor":"#f0f0f0"}'
-                                          value={(() => { try { return currentCSS; } catch { return ""; } })()}
-                                          onChange={(e) => setStoreCSS(catalog.id, store.name, e.target.value)}
-                                        />
-                                      </div>
-                                      {effective.storeFees[store.name] ? (
-                                        <div>
-                                          <label className="block text-[11px] text-gray-600 mb-1">Additional Fee</label>
-                                          <div className="flex items-center gap-2">
-                                            <select
-                                              value={effective.storeFees[store.name].type}
-                                              onChange={(e) => {
-                                                setStoreFee(catalog.id, store.name, {
-                                                  type: e.target.value as FeeType,
-                                                  value: effective.storeFees[store.name].value
-                                                });
-                                              }}
-                                              className="text-xs border border-gray-200 rounded px-2 py-1 bg-white"
-                                            >
-                                              <option value="percentage">%</option>
-                                              <option value="fixed">Fixed</option>
-                                            </select>
-                                            <input
-                                              type="number"
-                                              min={0}
-                                              step={effective.storeFees[store.name].type === 'percentage' ? 0.1 : 1}
-                                              value={effective.storeFees[store.name].value}
-                                              onChange={(e) => {
-                                                const value = parseFloat(e.target.value) || 0;
-                                                if (value === 0) {
-                                                  setStoreFee(catalog.id, store.name, null);
-                                                } else {
-                                                  setStoreFee(catalog.id, store.name, { type: effective.storeFees[store.name].type, value });
-                                                }
-                                              }}
-                                              className="flex-1 h-6 text-xs border border-gray-200 rounded px-1"
-                                            />
-                                            <span className="px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded text-[10px]">
-                                              {effective.storeFees[store.name].type === 'percentage' 
-                                                ? `+${effective.storeFees[store.name].value}%` 
-                                                : `+${effective.storeFees[store.name].value}`}
-                                            </span>
-                                            <button
-                                              onClick={() => setStoreFee(catalog.id, store.name, null)}
-                                              className="px-1 py-0.5 bg-red-100 text-red-800 text-[10px] rounded hover:bg-red-200"
-                                            >
-                                              Remove
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div>
-                                          <button
-                                            onClick={() => setStoreFee(catalog.id, store.name, { type: 'percentage', value: 5 })}
-                                            className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[11px] rounded hover:bg-yellow-200"
-                                          >
-                                            + Add Fee
-                                          </button>
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
                   </>
                 )}
@@ -740,305 +1276,6 @@ export default function CatalogsPage() {
         })}
       </div>
 
-      {/* Combo Instance Form Modal removed */}
-        if (!isOpen) return null;
-        const catalog = catalogs.find(c => c.id === catalogId);
-        if (!catalog) return null;
-        const formData = comboInstanceFormData[catalogId] || {
-          masterComboId: null,
-          displayName: "",
-          imageUrl: "",
-          customStoreNames: [],
-          denominations: [],
-          isActive: true,
-        };
-        // Sort master combos so "Default Combo Card" appears first
-        const availableMasterCombos = masterCombos
-          .filter(m => m.currency === catalog.currency && m.isActive)
-          .sort((a, b) => {
-            // Put "Default Combo Card" first
-            if (a.name === "Default Combo Card" && b.name !== "Default Combo Card") return -1;
-            if (b.name === "Default Combo Card" && a.name !== "Default Combo Card") return 1;
-            return a.name.localeCompare(b.name);
-          });
-        const availableStores = stores.filter(s => s.country === catalog.country);
-
-        return (
-          <div
-            key={catalogId}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => {
-              setShowComboInstanceForm(prev => ({ ...prev, [catalogId]: false }));
-            }}
-          >
-            <div
-              className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Add Combo Card to {catalog.name}</h3>
-                <button
-                  onClick={() => {
-                    setShowComboInstanceForm(prev => ({ ...prev, [catalogId]: false }));
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="p-6 overflow-y-auto flex-1">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Choose Base
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-2 p-3 border border-gray-200 rounded cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          name={`combo-base-${catalogId}`}
-                          checked={formData.masterComboId !== null}
-                          onChange={() => {
-                            setComboInstanceFormData(prev => ({
-                              ...prev,
-                              [catalogId]: { ...formData, masterComboId: availableMasterCombos[0]?.id || null }
-                            }));
-                          }}
-                          className="text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <span className="text-sm font-medium">Use existing Default Combo</span>
-                          <select
-                            value={formData.masterComboId || ""}
-                            onChange={(e) => {
-                              setComboInstanceFormData(prev => ({
-                                ...prev,
-                                [catalogId]: { ...formData, masterComboId: e.target.value || null }
-                              }));
-                            }}
-                            className="mt-1 w-full text-sm border border-gray-300 rounded px-2 py-1"
-                            disabled={formData.masterComboId === null}
-                          >
-                            <option value="">Select a default combo</option>
-                            {availableMasterCombos.map(m => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} ({m.storeNames.length} stores)
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </label>
-                      <label className="flex items-center space-x-2 p-3 border border-gray-200 rounded cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          name={`combo-base-${catalogId}`}
-                          checked={formData.masterComboId === null}
-                          onChange={() => {
-                            setComboInstanceFormData(prev => ({
-                              ...prev,
-                              [catalogId]: { ...formData, masterComboId: null, customStoreNames: [] }
-                            }));
-                          }}
-                          className="text-blue-600"
-                        />
-                        <span className="text-sm font-medium">Create custom combo (just for this tenant)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {formData.masterComboId && (() => {
-                    const master = getMasterCombo(formData.masterComboId);
-                    return master ? (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-                        <p className="text-sm text-blue-800">
-                          ✓ This combo includes {master.storeNames.length} stores from &quot;{master.name}&quot;
-                        </p>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Note: Changes to {master.name} will automatically update this combo instance.
-                        </p>
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {formData.masterComboId === null && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Stores <span className="text-red-500">*</span>
-                      </label>
-                      <div className="border border-gray-200 rounded-md p-3 max-h-48 overflow-y-auto bg-gray-50">
-                        <div className="space-y-2">
-                          {availableStores.map(store => (
-                            <label
-                              key={store.name}
-                              className="flex items-center space-x-2 p-2 rounded hover:bg-white cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={formData.customStoreNames.includes(store.name)}
-                                onChange={() => {
-                                  const newStoreNames = formData.customStoreNames.includes(store.name)
-                                    ? formData.customStoreNames.filter(n => n !== store.name)
-                                    : [...formData.customStoreNames, store.name];
-                                  setComboInstanceFormData(prev => ({
-                                    ...prev,
-                                    [catalogId]: { ...formData, customStoreNames: newStoreNames }
-                                  }));
-                                }}
-                                className="rounded border-gray-300 text-blue-600"
-                              />
-                              <span className="text-sm text-gray-700">{store.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Display Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.displayName}
-                      onChange={(e) => {
-                        setComboInstanceFormData(prev => ({
-                          ...prev,
-                          [catalogId]: { ...formData, displayName: e.target.value }
-                        }));
-                      }}
-                      placeholder="e.g., Holiday Combo, Premium Combo"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Image URL
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.imageUrl}
-                      onChange={(e) => {
-                        setComboInstanceFormData(prev => ({
-                          ...prev,
-                          [catalogId]: { ...formData, imageUrl: e.target.value }
-                        }));
-                      }}
-                      placeholder="https://example.com/image.jpg"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                    {formData.imageUrl && (
-                      <div className="mt-2 w-full h-32 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-                        <img
-                          src={formData.imageUrl}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Denominations
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const allDenoms = [5, 10, 25, 50, 100, 200, 500];
-                          const allSelected = allDenoms.every(d => formData.denominations.includes(d));
-                          const newDenoms = allSelected ? [] : allDenoms;
-                          setComboInstanceFormData(prev => ({
-                            ...prev,
-                            [catalogId]: { ...formData, denominations: newDenoms }
-                          }));
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        {[5, 10, 25, 50, 100, 200, 500].every(d => formData.denominations.includes(d)) ? "Deselect All" : "Select All"}
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[5, 10, 25, 50, 100, 200, 500].map(denom => (
-                        <label
-                          key={denom}
-                          className="flex items-center space-x-2 p-2 rounded border border-gray-200 hover:bg-gray-50 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={formData.denominations.includes(denom)}
-                            onChange={() => {
-                              const newDenoms = formData.denominations.includes(denom)
-                                ? formData.denominations.filter(d => d !== denom)
-                                : [...formData.denominations, denom].sort((a, b) => a - b);
-                              setComboInstanceFormData(prev => ({
-                                ...prev,
-                                [catalogId]: { ...formData, denominations: newDenoms }
-                              }));
-                            }}
-                            className="rounded border-gray-300 text-blue-600"
-                          />
-                          <span className="text-sm text-gray-700">
-                            {catalog.currency === "USD" ? "$" : catalog.currency === "CAD" ? "C$" : "£"}{denom}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowComboInstanceForm(prev => ({ ...prev, [catalogId]: false }));
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (!formData.displayName.trim()) {
-                      alert("Please provide a display name");
-                      return;
-                    }
-                    if (formData.masterComboId === null && formData.customStoreNames.length === 0) {
-                      alert("Please select at least one store for custom combo");
-                      return;
-                    }
-                    createComboInstance({
-                      catalogId,
-                      masterComboId: formData.masterComboId,
-                      displayName: formData.displayName.trim(),
-                      imageUrl: formData.imageUrl || undefined,
-                      customStoreNames: formData.masterComboId === null ? formData.customStoreNames : null,
-                      denominations: formData.denominations,
-                      isActive: formData.isActive,
-                    });
-                    setShowComboInstanceForm(prev => ({ ...prev, [catalogId]: false }));
-                    setComboInstanceFormData(prev => {
-                      const newData = { ...prev };
-                      delete newData[catalogId];
-                      return newData;
-                    });
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-                >
-                  Create Combo Card
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
     </section>
   );
 }

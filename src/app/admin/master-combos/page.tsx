@@ -37,6 +37,34 @@ export default function MasterCombosPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   };
 
+  // Get pricing type for a store (same logic as stores page)
+  const getStorePricingType = (storeName: string, country: Country): "Variable" | "Fixed" | null => {
+    // Deterministic pseudo-random assignment based on store name and country
+    const key = `${country}-${storeName}`;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % 2 === 0 ? "Variable" : "Fixed";
+  };
+
+  // Get denomination options for Fixed pricing stores
+  const getFixedPricingOptions = (storeName: string, country: Country): string => {
+    const key = `${country}-${storeName}`;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    }
+    // Use hash to deterministically assign one of three options
+    const optionIndex = Math.abs(hash) % 3;
+    const options = [
+      [5, 15, 25, 50],
+      [25, 50, 75],
+      [10, 50, 100, 150, 200]
+    ];
+    return options[optionIndex].join(", ");
+  };
+
   const availableStores = useMemo(() => getStoresByCurrency(formData.currency), [formData.currency, stores]);
 
   const handleCreate = () => {
@@ -132,14 +160,16 @@ export default function MasterCombosPage() {
         </div>
       </header>
 
-      {/* Default Combos List */}
-      {masterCombos.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
-          <p>No default combos created yet. Create your first default combo to get started.</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {masterCombos.map((combo) => (
+      {/* Default Combos List - Only show "Default Combo Card" (one per currency) */}
+      {(() => {
+        const defaultCombos = masterCombos.filter(mc => mc.name === "Default Combo Card");
+        return defaultCombos.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
+            <p>No default combos created yet. Create your first default combo to get started.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {defaultCombos.map((combo) => (
             <div
               key={combo.id}
               className={`rounded-lg border p-4 shadow-sm transition-all ${
@@ -225,7 +255,8 @@ export default function MasterCombosPage() {
             </div>
           ))}
         </div>
-      )}
+        );
+      })()}
 
       {/* Form Modal */}
       {showForm && (
@@ -352,20 +383,43 @@ export default function MasterCombosPage() {
                       <p className="text-sm text-gray-500">No stores available for this currency.</p>
                     ) : (
                       <div className="space-y-2">
-                        {availableStores.map((store) => (
-                          <label
-                            key={store.name}
-                            className="flex items-center space-x-2 p-2 rounded hover:bg-white cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={formData.storeNames.includes(store.name)}
-                              onChange={() => toggleStore(store.name)}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{store.name}</span>
-                          </label>
-                        ))}
+                        {availableStores.map((store) => {
+                          const countryMap: Record<Currency, Country> = {
+                            USD: "US",
+                            CAD: "CA",
+                            GBP: "GB",
+                          };
+                          const country = countryMap[formData.currency];
+                          const pricingType = getStorePricingType(store.name, country);
+                          const fixedOptions = pricingType === "Fixed" ? getFixedPricingOptions(store.name, country) : "";
+                          
+                          return (
+                            <label
+                              key={store.name}
+                              className="flex items-center space-x-2 p-2 rounded hover:bg-white cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.storeNames.includes(store.name)}
+                                onChange={() => toggleStore(store.name)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700 flex-1">{store.name}</span>
+                              {pricingType && (
+                                <span
+                                  className={`inline-flex h-5 items-center rounded-md border px-2 text-xs font-medium cursor-help ${
+                                    pricingType === "Variable"
+                                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                                      : "border-slate-200 bg-slate-50 text-slate-700"
+                                  }`}
+                                  title={pricingType === "Variable" ? "0-2000$" : fixedOptions}
+                                >
+                                  {pricingType}
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

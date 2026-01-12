@@ -10,6 +10,10 @@ type Store = {
   name: string; 
   country: Country;
   isActive: boolean;
+  isCombo?: boolean;
+  isComboInstance?: boolean;
+  comboInstanceId?: string;
+  storeType: "Close" | "Open" | "Combo";
 };
 
 
@@ -70,27 +74,399 @@ export default function StoresPage() {
   const { 
     stores: adminStores, 
     isStoreActive, 
-    toggleStoreActive
+    toggleStoreActive,
+    combos,
+    toggleComboActive,
+    masterCombos,
+    comboInstances,
+    catalogs,
+    createComboInstance,
+    updateComboInstance,
+    deleteComboInstance,
+    getMasterCombo,
+    getComboInstanceStores,
+    storeSuppliers,
+    setStoreSupplierDiscount,
+    setStoreSelectedSupplier,
+    setStoreSecondarySupplier,
+    getStoreContent,
+    setStoreContent,
+    getStoreImage,
+    setStoreImage,
+    addStoreToCatalog
   } = useAdminData();
   
+  const [showStoreForm, setShowStoreForm] = useState(false);
+  const [currencyFilter, setCurrencyFilter] = useState<string>("all");
+  const [storeTypeFilter, setStoreTypeFilter] = useState<string>("all");
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [supplierModalOpen, setSupplierModalOpen] = useState<Record<string, boolean>>({});
+  const [contentModalOpen, setContentModalOpen] = useState<Record<string, boolean>>({});
+  const [contentFormData, setContentFormData] = useState<Record<string, { description: string; termsAndConditions: string }>>({});
+  const [imageModalOpen, setImageModalOpen] = useState<Record<string, boolean>>({});
+  const [imageFormData, setImageFormData] = useState<Record<string, string>>({});
+  const [dbCardsModalOpen, setDbCardsModalOpen] = useState(false);
+  const [storeFormData, setStoreFormData] = useState({
+    storeType: "regular" as "regular" | "combo",
+    storeName: "",
+    country: "US" as Country,
+    currency: "USD" as "USD" | "CAD" | "GBP",
+    catalogId: "",
+    masterComboId: "" as string | null,
+    customStoreNames: [] as string[],
+    imageUrl: "",
+    denominations: [25, 50, 100] as number[],
+    isActive: true,
+    supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<number, number>,
+    offeringSuppliers: [1, 2, 3, 4, 5] as number[],
+    selectedSupplier: null as number | null,
+    secondarySupplier: null as number | null,
+  });
+  
   const stores: Store[] = useMemo(() => {
-    return adminStores.map(s => ({
-      id: `${s.country.toLowerCase()}-${s.name.toLowerCase().replace(/\s+/g, '-')}`,
-      name: s.name,
-      country: s.country,
-      isActive: isStoreActive(s.name, s.country),
-    }));
-  }, [adminStores, isStoreActive]);
+    // Map regular stores
+    const regularStores = adminStores.map(s => {
+      // Determine store type: "Visa" stores are "Open", others are "Close"
+      const storeType: "Close" | "Open" | "Combo" = s.name.toLowerCase().includes("visa") ? "Open" : "Close";
+      
+      return {
+        id: `${s.country.toLowerCase()}-${s.name.toLowerCase().replace(/\s+/g, '-')}`,
+        name: s.name,
+        country: s.country,
+        isActive: isStoreActive(s.name, s.country),
+        isCombo: false,
+        storeType,
+      };
+    });
+    
+    // Map combo instances as stores
+    const comboInstanceStores = comboInstances.map(instance => {
+      // Get catalog to determine country
+      const catalog = catalogs.find(c => c.id === instance.catalogId);
+      const country = catalog?.country || 'US';
+      
+      return {
+        id: `combo-instance-${instance.id}`,
+        name: instance.displayName,
+        country: country,
+        isActive: instance.isActive,
+        isCombo: true,
+        isComboInstance: true,
+        comboInstanceId: instance.id,
+        storeType: "Combo" as const,
+      };
+    });
+    
+    const allStores = [...regularStores, ...comboInstanceStores];
+    
+    // Sort alphabetically by name
+    return allStores.sort((a, b) => a.name.localeCompare(b.name));
+  }, [adminStores, isStoreActive, comboInstances, catalogs]);
+
+  // Filter stores by currency, store type, and selected supplier
+  const filteredStores = useMemo(() => {
+    let filtered = stores;
+    
+    // Filter by currency
+    if (currencyFilter !== "all") {
+      filtered = filtered.filter(store => {
+        if (store.isComboInstance) {
+          // For combo instances, get currency from their catalog
+          const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
+          if (instance) {
+            const catalog = catalogs.find(c => c.id === instance.catalogId);
+            return catalog?.currency === currencyFilter;
+          }
+          return false;
+        } else {
+          // For regular stores, check if they have a currency property
+          const adminStore = adminStores.find(s => s.name === store.name && s.country === store.country);
+          if (adminStore && (adminStore as any).currency) {
+            return (adminStore as any).currency === currencyFilter;
+          }
+          // If no currency property, map country to currency
+          const countryToCurrency: Record<Country, string> = {
+            "US": "USD",
+            "CA": "CAD",
+            "GB": "GBP"
+          };
+          return countryToCurrency[store.country] === currencyFilter;
+        }
+      });
+    }
+    
+    // Filter by store type
+    if (storeTypeFilter !== "all") {
+      filtered = filtered.filter(store => store.storeType === storeTypeFilter);
+    }
+    
+    // Filter by selected supplier
+    if (supplierFilter !== "all") {
+      if (supplierFilter === "none") {
+        filtered = filtered.filter(store => {
+          if (store.isComboInstance) return false; // Combo stores don't have suppliers
+          const storeKey = `${store.country}-${store.name}`;
+          const supplierData = storeSuppliers[storeKey];
+          return !supplierData || supplierData.selectedSupplier === null;
+        });
+      } else {
+        const supplierId = parseInt(supplierFilter);
+        filtered = filtered.filter(store => {
+          if (store.isComboInstance) return false; // Combo stores don't have suppliers
+          const storeKey = `${store.country}-${store.name}`;
+          const supplierData = storeSuppliers[storeKey];
+          return supplierData?.selectedSupplier === supplierId;
+        });
+      }
+    }
+    
+    return filtered;
+  }, [stores, currencyFilter, storeTypeFilter, supplierFilter, comboInstances, catalogs, adminStores, storeSuppliers]);
+
+  // DB Cards data structure
+  type DBCardData = {
+    storeName: string;
+    qtyInDB: number;
+    value: number;
+  };
+  
+  // Generate dummy DB cards data (deterministic based on store name)
+  const dbCardsData: DBCardData[] = useMemo(() => {
+    const data: DBCardData[] = [];
+    const stores = filteredStores.filter(s => !s.isComboInstance);
+    
+    stores.forEach(store => {
+      // Use deterministic hash based on store name for consistent data
+      const hashKey = `${store.country}-${store.name}`;
+      let hash = 0;
+      for (let i = 0; i < hashKey.length; i++) {
+        hash = (hash * 31 + hashKey.charCodeAt(i)) | 0;
+      }
+      
+      // Generate deterministic quantity between 10 and 500
+      const qty = (Math.abs(hash) % 490) + 10;
+      // Generate deterministic value per card between $5 and $200
+      const valuePerCard = ((Math.abs(hash * 7) % 195) + 5);
+      const totalValue = qty * valuePerCard;
+      
+      data.push({
+        storeName: store.name,
+        qtyInDB: qty,
+        value: totalValue
+      });
+    });
+    
+    // Sort by store name alphabetically
+    return data.sort((a, b) => a.storeName.localeCompare(b.storeName));
+  }, [filteredStores]);
+  
+  const totalDBCards = useMemo(() => {
+    return dbCardsData.reduce((sum, card) => sum + card.qtyInDB, 0);
+  }, [dbCardsData]);
+  
+  const totalValueOfCards = useMemo(() => {
+    return dbCardsData.reduce((sum, card) => sum + card.value, 0);
+  }, [dbCardsData]);
 
   const handleToggleStoreActive = (storeId: string) => {
     const store = stores.find(s => s.id === storeId);
     if (store) {
-      toggleStoreActive(store.name, store.country);
+      if (store.isComboInstance) {
+        // Toggle combo instance active state
+        const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
+        if (instance) {
+          updateComboInstance(instance.id, { isActive: !instance.isActive });
+        }
+      } else {
+        toggleStoreActive(store.name, store.country);
+      }
     }
   };
+  
+  const handleCreateStore = () => {
+    if (storeFormData.storeType === "regular") {
+      // For regular stores, find the store in the system and set up supplier data
+      if (!storeFormData.storeName) {
+        alert("Please provide a store name");
+        return;
+      }
+      
+      // Find the store in the admin stores list
+      const existingStore = adminStores.find(s => 
+        s.name === storeFormData.storeName && s.country === storeFormData.country
+      );
+      
+      if (!existingStore) {
+        alert(`Store "${storeFormData.storeName}" not found in ${storeFormData.country} stores. Please use an existing store name.`);
+        return;
+      }
+      
+      // Ensure at least one supplier is offering
+      if (storeFormData.offeringSuppliers.length === 0) {
+        alert("Please select at least one available supplier");
+        return;
+      }
+      
+      // Set up supplier data
+      const storeKey = `${storeFormData.country}-${storeFormData.storeName}`;
+      const discounts: Record<number, number> = {};
+      
+      // Set margins for offering suppliers
+      storeFormData.offeringSuppliers.forEach(supplierId => {
+        discounts[supplierId] = storeFormData.supplierMargins[supplierId] || 0;
+      });
+      
+      // Determine selected supplier (primary)
+      let selectedSupplier = storeFormData.selectedSupplier;
+      if (selectedSupplier && !storeFormData.offeringSuppliers.includes(selectedSupplier)) {
+        // If selected supplier is not offering, select the one with highest margin
+        let highestMargin = 0;
+        let bestSupplier: number | null = null;
+        storeFormData.offeringSuppliers.forEach(supplierId => {
+          const margin = discounts[supplierId] || 0;
+          if (margin > highestMargin) {
+            highestMargin = margin;
+            bestSupplier = supplierId;
+          }
+        });
+        selectedSupplier = bestSupplier;
+      } else if (!selectedSupplier && storeFormData.offeringSuppliers.length > 0) {
+        // If no supplier selected, select the one with highest margin
+        let highestMargin = 0;
+        let bestSupplier: number | null = null;
+        storeFormData.offeringSuppliers.forEach(supplierId => {
+          const margin = discounts[supplierId] || 0;
+          if (margin > highestMargin) {
+            highestMargin = margin;
+            bestSupplier = supplierId;
+          }
+        });
+        selectedSupplier = bestSupplier;
+      }
+      
+      // Initialize supplier data using the existing functions
+      // First, set all the discounts
+      storeFormData.offeringSuppliers.forEach(supplierId => {
+        setStoreSupplierDiscount(storeFormData.storeName, storeFormData.country, supplierId, discounts[supplierId] || 0);
+      });
+      
+      // Then set the selected supplier
+      if (selectedSupplier !== null) {
+        setStoreSelectedSupplier(storeFormData.storeName, storeFormData.country, selectedSupplier);
+      }
+      
+      // Set secondary supplier if specified
+      if (storeFormData.secondarySupplier && 
+          storeFormData.offeringSuppliers.includes(storeFormData.secondarySupplier) &&
+          storeFormData.secondarySupplier !== selectedSupplier) {
+        setStoreSecondarySupplier(storeFormData.storeName, storeFormData.country, storeFormData.secondarySupplier);
+      }
+      
+      // Find catalog and add store to it
+      const catalog = catalogs.find(c => 
+        c.currency === storeFormData.currency && !c.isBranch && c.name.includes("Default")
+      );
+      
+      if (catalog) {
+        addStoreToCatalog(catalog.id, storeFormData.storeName);
+      }
+      
+      alert(`Store "${storeFormData.storeName}" has been set up with supplier data.`);
+    } else {
+      // Combo store
+      if (!storeFormData.storeName) {
+        alert("Please provide a combo name");
+      return;
+    }
+      
+      // Find catalog based on currency
+      const catalog = catalogs.find(c => {
+        const currencyMap: Record<string, string> = {
+          'USD': 'USD',
+          'CAD': 'CAD',
+          'GBP': 'GBP'
+        };
+        return c.currency === currencyMap[storeFormData.currency] && !c.isBranch && c.name.includes("Default");
+      });
+      
+      if (!catalog) {
+        alert("Could not find a catalog for the selected currency");
+      return;
+    }
+      
+      if (!storeFormData.masterComboId && storeFormData.customStoreNames.length === 0) {
+        alert("Please either select a default combo or add custom stores");
+      return;
+    }
+      
+      createComboInstance({
+        catalogId: catalog.id,
+        masterComboId: storeFormData.masterComboId,
+        displayName: storeFormData.storeName,
+        customStoreNames: storeFormData.masterComboId ? null : storeFormData.customStoreNames,
+        imageUrl: storeFormData.imageUrl || undefined,
+        denominations: storeFormData.denominations,
+        isActive: storeFormData.isActive,
+      });
+    }
+    
+    // Reset form
+    setStoreFormData({
+      storeType: "regular",
+      storeName: "",
+      country: "US",
+      currency: "USD",
+      catalogId: "",
+      masterComboId: null,
+      customStoreNames: [],
+      imageUrl: "",
+      denominations: [25, 50, 100],
+      isActive: true,
+      supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      offeringSuppliers: [1, 2, 3, 4, 5],
+      selectedSupplier: null,
+      secondarySupplier: null,
+    });
+    setShowStoreForm(false);
+  };
 
-  const activeCount = useMemo(() => stores.filter(s => s.isActive).length, [stores]);
-  const inactiveCount = stores.length - activeCount;
+  const activeCount = useMemo(() => filteredStores.filter(s => s.isActive).length, [filteredStores]);
+  const inactiveCount = filteredStores.length - activeCount;
+
+  // Helper to determine pricing type (Variable / Fixed) for each non-combo store.
+  // Combos have no pricing type.
+  const getStorePricingType = (store: Store): "Variable" | "Fixed" | null => {
+    if (store.isComboInstance || store.storeType === "Combo") {
+      return null;
+    }
+    // Deterministic pseudo-random assignment based on store name and country
+    const key = `${store.country}-${store.name}`;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % 2 === 0 ? "Variable" : "Fixed";
+  };
+
+  // Get denomination options for Fixed pricing stores
+  const getFixedPricingOptions = (store: Store): string => {
+    if (store.isComboInstance || store.storeType === "Combo") {
+      return "";
+    }
+    const key = `${store.country}-${store.name}`;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    }
+    // Use hash to deterministically assign one of three options
+    const optionIndex = Math.abs(hash) % 3;
+    const options = [
+      [5, 15, 25, 50],
+      [25, 50, 75],
+      [10, 50, 100, 150, 200]
+    ];
+    return options[optionIndex].join(", ");
+  };
 
   return (
     <section className="space-y-6">
@@ -99,14 +475,108 @@ export default function StoresPage() {
           <div>
         <h1 className="text-2xl font-semibold tracking-tight">Stores</h1>
             <p className="text-sm text-gray-600">
-              {stores.length} stores total • {activeCount} active • {inactiveCount} inactive
+              {filteredStores.length} stores total • {activeCount} active • {inactiveCount} inactive
             </p>
           </div>
+          <button
+            onClick={() => setShowStoreForm(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+          >
+            + Create Store
+          </button>
         </div>
       </header>
 
+      {/* DB Cards Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div 
+          onClick={() => setDbCardsModalOpen(true)}
+          className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-600 mb-1">Total DB Cards</h3>
+              <p className="text-3xl font-bold text-gray-900">{totalDBCards.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-600 mb-1">Value of Total Cards</h3>
+              <p className="text-3xl font-bold text-gray-900">${totalValueOfCards.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">
+            Currency:
+          </label>
+          <select
+            value={currencyFilter}
+            onChange={(e) => setCurrencyFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+          >
+            <option value="all">All</option>
+            <option value="USD">USD</option>
+            <option value="CAD">CAD</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">
+            Store Type:
+          </label>
+          <select
+            value={storeTypeFilter}
+            onChange={(e) => setStoreTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+          >
+            <option value="all">All</option>
+            <option value="Close">Close</option>
+            <option value="Open">Open</option>
+            <option value="Combo">Combo</option>
+          </select>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">
+            Selected Supplier:
+          </label>
+          <select
+            value={supplierFilter}
+            onChange={(e) => setSupplierFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+          >
+            <option value="all">All</option>
+            <option value="1">Supplier 1</option>
+            <option value="2">Supplier 2</option>
+            <option value="3">Supplier 3</option>
+            <option value="4">Supplier 4</option>
+            <option value="5">Supplier 5</option>
+            <option value="none">No Supplier</option>
+          </select>
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {stores.map((store) => {
+        {filteredStores.map((store) => {
           // Get brand logo URL from official sources or Wikipedia
           const getBrandLogoUrl = (brandName: string): string => {
             const logoMap: Record<string, string> = {
@@ -275,7 +745,21 @@ export default function StoresPage() {
             return logoMap[brandName] || `https://logo.clearbit.com/${brandName.toLowerCase().replace(/\s+/g, "").replace("'", "")}.com`;
           };
 
-          const logoUrl = getBrandLogoUrl(store.name);
+          // Get combo image if it's a combo instance
+          let logoUrl: string;
+          const pricingType = getStorePricingType(store);
+          
+          // Check if there's an uploaded image
+          const uploadedImage = getStoreImage(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+          
+          if (uploadedImage) {
+            logoUrl = uploadedImage;
+          } else if (store.isComboInstance && store.comboInstanceId) {
+            const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
+            logoUrl = instance?.imageUrl || getBrandLogoUrl(store.name);
+          } else {
+            logoUrl = getBrandLogoUrl(store.name);
+          }
           const initials = store.name
             .split(" ")
             .map(word => word[0])
@@ -311,7 +795,7 @@ export default function StoresPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-base font-medium text-gray-900 truncate">{store.name}</h2>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className={`inline-flex h-5 items-center rounded-md border px-2 text-xs font-medium ${
                       store.country === "US" 
                         ? "border-blue-200 bg-blue-50 text-blue-700"
@@ -321,13 +805,100 @@ export default function StoresPage() {
                     }`}>
                 {store.country}
               </span>
+                    <span className={`inline-flex h-5 items-center rounded-md border px-2 text-xs font-medium ${
+                      store.storeType === "Combo"
+                        ? "border-purple-200 bg-purple-50 text-purple-700"
+                        : store.storeType === "Open"
+                        ? "border-green-200 bg-green-50 text-green-700"
+                        : "border-gray-200 bg-gray-50 text-gray-700"
+                    }`}>
+                      {store.storeType}
+                    </span>
+                    {pricingType && (
+                      <span
+                        className={`inline-flex h-5 items-center rounded-md border px-2 text-xs font-medium cursor-help ${
+                          pricingType === "Variable"
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-slate-200 bg-slate-50 text-slate-700"
+                        }`}
+                        title={pricingType === "Variable" ? "0-2000$" : getFixedPricingOptions(store)}
+                      >
+                        {pricingType}
+                      </span>
+                    )}
                     {!store.isActive && (
                       <span className="text-xs text-gray-500">Inactive</span>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-end">
+              {!store.isComboInstance && (() => {
+                const storeKey = `${store.country}-${store.name}`;
+                const supplierData = storeSuppliers[storeKey] || { selectedSupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+                const selectedSupplier = supplierData.selectedSupplier;
+                const offeringCount = (supplierData.offeringSuppliers || [1, 2, 3, 4, 5]).length;
+                const selectedMargin = selectedSupplier !== null && selectedSupplier !== undefined 
+                  ? supplierData.discounts[selectedSupplier] || 0 
+                  : null;
+                return (
+                  <div className="mb-3">
+                    {selectedSupplier !== null && selectedSupplier !== undefined && selectedMargin !== null ? (
+                      <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
+                        <div className="text-xs font-medium text-green-800">
+                          Supplier {selectedSupplier} Selected
+                        </div>
+                        <div className="text-xs text-green-700 mt-0.5">
+                          Margin: {selectedMargin.toFixed(2)}%
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-2 text-xs text-gray-500">
+                        No supplier selected
+                      </div>
+                    )}
+                    {offeringCount < 5 && (
+                      <div className="text-xs text-gray-500 mb-1">
+                        {offeringCount}/5 suppliers available
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setSupplierModalOpen(prev => ({ ...prev, [store.id]: true }))}
+                      className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 border border-blue-200"
+                    >
+                      Manage Suppliers
+                    </button>
+                  </div>
+                );
+              })()}
+              <div className="flex items-center justify-between mt-3 gap-2">
+                <div className="flex gap-2 flex-1">
+                  <button
+                    onClick={() => {
+                      const content = getStoreContent(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+                      setContentFormData(prev => ({
+                        ...prev,
+                        [store.id]: { ...content }
+                      }));
+                      setContentModalOpen(prev => ({ ...prev, [store.id]: true }));
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 border border-purple-200"
+                  >
+                    Edit T&C & Description
+                  </button>
+                  <button
+                    onClick={() => {
+                      const currentImage = getStoreImage(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+                      setImageFormData(prev => ({
+                        ...prev,
+                        [store.id]: currentImage || ""
+                      }));
+                      setImageModalOpen(prev => ({ ...prev, [store.id]: true }));
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 border border-indigo-200"
+                  >
+                    {uploadedImage ? "Update Image" : "Upload Image"}
+                  </button>
+                </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -342,6 +913,751 @@ export default function StoresPage() {
           );
         })}
       </div>
+
+      {/* Supplier Management Modals */}
+      {filteredStores.filter(s => !s.isComboInstance).map(store => {
+        const storeKey = `${store.country}-${store.name}`;
+        const supplierData = storeSuppliers[storeKey] || { selectedSupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+        const isOpen = supplierModalOpen[store.id];
+        if (!isOpen) return null;
+
+        const offeringSuppliers = supplierData.offeringSuppliers || [1, 2, 3, 4, 5];
+
+        return (
+          <div key={`supplier-modal-${store.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Manage Suppliers - {store.name}</h2>
+                <button
+                  onClick={() => setSupplierModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map(supplierId => {
+                  const isOffering = offeringSuppliers.includes(supplierId);
+                  const discount = supplierData.discounts[supplierId] || 0;
+                  const isSelected = supplierData.selectedSupplier === supplierId;
+                  
+                  if (!isOffering) {
+                    return (
+                      <div key={supplierId} className="border border-gray-200 rounded-lg p-4 bg-gray-50 opacity-75">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-sm font-medium text-gray-500">Supplier {supplierId}</h3>
+                            <span className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-200 rounded">
+                              Not Offering
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mb-2">
+                          <p className="text-xs text-gray-500 italic">This supplier is not available for this store and cannot be selected.</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Margin (%)
+                          </label>
+                          <div className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-gray-100 text-gray-400 cursor-not-allowed">
+                            N/A
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={supplierId} className={`border rounded-lg p-4 ${isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-sm font-medium text-gray-900">Supplier {supplierId}</h3>
+                          {isSelected && (
+                            <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded">
+                              Selected
+                            </span>
+                          )}
+                          {!isSelected && supplierData.selectedSupplier !== null && (
+                            <span className="text-xs text-gray-500">
+                              (Click to replace current selection)
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            // Only one supplier can be selected at a time - selecting a new one automatically deselects the previous
+                            setStoreSelectedSupplier(store.name, store.country, isSelected ? null : supplierId);
+                          }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded ${
+                            isSelected
+                              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                          }`}
+                        >
+                          {isSelected ? "Deselect" : "Select"}
+                        </button>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Margin (%)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={discount}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            setStoreSupplierDiscount(store.name, store.country, supplierId, value);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setSupplierModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Store Content (T&C & Description) Modals */}
+      {filteredStores.map(store => {
+        const isOpen = contentModalOpen[store.id];
+        if (!isOpen) return null;
+
+        const formData = contentFormData[store.id] || getStoreContent(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+
+        return (
+          <div key={`content-modal-${store.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Edit Content - {store.name}</h2>
+                <button
+                  onClick={() => setContentModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setContentFormData(prev => ({
+                      ...prev,
+                      [store.id]: { ...formData, description: e.target.value }
+                    }))}
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                    placeholder="Enter store description..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Terms & Conditions
+                  </label>
+                  <textarea
+                    value={formData.termsAndConditions}
+                    onChange={(e) => setContentFormData(prev => ({
+                      ...prev,
+                      [store.id]: { ...formData, termsAndConditions: e.target.value }
+                    }))}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                    placeholder="Enter terms and conditions..."
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setContentModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setStoreContent(
+                      store.name,
+                      store.country,
+                      !!store.isComboInstance,
+                      store.comboInstanceId,
+                      formData
+                    );
+                    setContentModalOpen(prev => ({ ...prev, [store.id]: false }));
+                  }}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm font-medium"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Store Image Upload Modals */}
+      {filteredStores.map(store => {
+        const isOpen = imageModalOpen[store.id];
+        if (!isOpen) return null;
+
+        const formData = imageFormData[store.id] || "";
+
+        return (
+          <div key={`image-modal-${store.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Upload/Update Image - {store.name}</h2>
+                <button
+                  onClick={() => setImageModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image URL
+                  </label>
+                  <input
+                    type="text"
+                    value={formData}
+                    onChange={(e) => setImageFormData(prev => ({
+                      ...prev,
+                      [store.id]: e.target.value
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Enter a URL to an image or upload a file</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Or Upload File
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const base64String = reader.result as string;
+                          setImageFormData(prev => ({
+                            ...prev,
+                            [store.id]: base64String
+                          }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                  />
+                </div>
+
+                {formData && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
+                    <div className="border border-gray-300 rounded p-4 bg-gray-50 flex items-center justify-center">
+                      <img
+                        src={formData}
+                        alt="Preview"
+                        className="max-w-full max-h-64 object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = '<p class="text-sm text-red-500">Failed to load image</p>';
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setImageModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                {formData && (
+                  <button
+                    onClick={() => {
+                      setStoreImage(
+                        store.name,
+                        store.country,
+                        !!store.isComboInstance,
+                        store.comboInstanceId,
+                        null
+                      );
+                      setImageModalOpen(prev => ({ ...prev, [store.id]: false }));
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
+                  >
+                    Remove Image
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setStoreImage(
+                      store.name,
+                      store.country,
+                      !!store.isComboInstance,
+                      store.comboInstanceId,
+                      formData || null
+                    );
+                    setImageModalOpen(prev => ({ ...prev, [store.id]: false }));
+                  }}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Create Store Form Modal */}
+      {showStoreForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Create Store</h2>
+            
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Store Type <span className="text-red-500">*</span>
+                  </label>
+                <select
+                  value={storeFormData.storeType}
+                  onChange={(e) => setStoreFormData(prev => ({ 
+                    ...prev, 
+                    storeType: e.target.value as "regular" | "combo"
+                  }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="regular">Regular Store</option>
+                  <option value="combo">Combo Store</option>
+                </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {storeFormData.storeType === "combo" ? "Combo Name" : "Store Name"} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                  type="text"
+                  value={storeFormData.storeName}
+                  onChange={(e) => setStoreFormData(prev => ({ ...prev, storeName: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  placeholder={storeFormData.storeType === "combo" ? "Enter combo name" : "Enter store name"}
+                />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Currency <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                  value={storeFormData.currency}
+                    onChange={(e) => {
+                    const currency = e.target.value as "USD" | "CAD" | "GBP";
+                    const countryMap: Record<string, Country> = {
+                      'USD': 'US',
+                      'CAD': 'CA',
+                      'GBP': 'GB'
+                    };
+                    setStoreFormData(prev => ({ 
+                        ...prev,
+                      currency,
+                      country: countryMap[currency]
+                      }));
+                    }}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="USD">USD</option>
+                  <option value="CAD">CAD</option>
+                  <option value="GBP">GBP</option>
+                  </select>
+                </div>
+
+              {storeFormData.storeType === "regular" && (
+                <>
+                  <div className="border-t pt-4 mt-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Supplier Management</h3>
+                    
+                    {/* Offering Suppliers */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Available Suppliers
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {[1, 2, 3, 4, 5].map(supplierId => (
+                          <label key={supplierId} className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded cursor-pointer hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={storeFormData.offeringSuppliers.includes(supplierId)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setStoreFormData(prev => ({
+                                    ...prev,
+                                    offeringSuppliers: [...prev.offeringSuppliers, supplierId]
+                                  }));
+                                } else {
+                                  setStoreFormData(prev => ({
+                                    ...prev,
+                                    offeringSuppliers: prev.offeringSuppliers.filter(id => id !== supplierId),
+                                    selectedSupplier: prev.selectedSupplier === supplierId ? null : prev.selectedSupplier,
+                                    secondarySupplier: prev.secondarySupplier === supplierId ? null : prev.secondarySupplier,
+                                  }));
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm">Supplier {supplierId}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Supplier Margins */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Supplier Margins (%)
+                      </label>
+                      <div className="space-y-2">
+                        {[1, 2, 3, 4, 5].map(supplierId => {
+                          const isOffering = storeFormData.offeringSuppliers.includes(supplierId);
+                          return (
+                            <div key={supplierId} className="flex items-center gap-3">
+                              <label className="w-24 text-sm text-gray-600">
+                                Supplier {supplierId}:
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.01}
+                                value={storeFormData.supplierMargins[supplierId] || 0}
+                                onChange={(e) => {
+                                  const value = parseFloat(e.target.value) || 0;
+                                  if (isOffering) {
+                                    setStoreFormData(prev => ({
+                                      ...prev,
+                                      supplierMargins: {
+                                        ...prev.supplierMargins,
+                                        [supplierId]: value
+                                      }
+                                    }));
+                                  }
+                                }}
+                                disabled={!isOffering}
+                                className={`flex-1 px-3 py-2 border border-gray-300 rounded text-sm ${
+                                  !isOffering ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''
+                                }`}
+                                placeholder="0"
+                              />
+                              {!isOffering && (
+                                <span className="text-xs text-gray-400">N/A</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Selected Supplier */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Selected Supplier (Primary)
+                      </label>
+                      <select
+                        value={storeFormData.selectedSupplier || ""}
+                        onChange={(e) => setStoreFormData(prev => ({
+                          ...prev,
+                          selectedSupplier: e.target.value ? parseInt(e.target.value) : null
+                        }))}
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="">None</option>
+                        {storeFormData.offeringSuppliers.map(supplierId => (
+                          <option key={supplierId} value={supplierId}>
+                            Supplier {supplierId} ({storeFormData.supplierMargins[supplierId] || 0}%)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Secondary Supplier */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Secondary Supplier
+                      </label>
+                      <select
+                        value={storeFormData.secondarySupplier || ""}
+                        onChange={(e) => setStoreFormData(prev => ({
+                          ...prev,
+                          secondarySupplier: e.target.value ? parseInt(e.target.value) : null
+                        }))}
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="">None</option>
+                        {storeFormData.offeringSuppliers
+                          .filter(id => id !== storeFormData.selectedSupplier)
+                          .map(supplierId => (
+                            <option key={supplierId} value={supplierId}>
+                              Supplier {supplierId} ({storeFormData.supplierMargins[supplierId] || 0}%)
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {storeFormData.storeType === "combo" && (
+                <>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Base on Default Combo
+                    </label>
+                    <select
+                      value={storeFormData.masterComboId || ""}
+                      onChange={(e) => setStoreFormData(prev => ({ 
+                        ...prev, 
+                        masterComboId: e.target.value || null,
+                        customStoreNames: e.target.value ? [] : prev.customStoreNames
+                      }))}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                    >
+                      <option value="">Custom (no default)</option>
+                      {masterCombos
+                        .filter(mc => mc.name === "Default Combo Card" && mc.currency === storeFormData.currency && mc.isActive)
+                        .map(mc => (
+                          <option key={mc.id} value={mc.id}>
+                            Default Combo Card ({mc.currency})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  
+                  {!storeFormData.masterComboId && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Custom Stores <span className="text-red-500">*</span>
+                      </label>
+                      <div className="border border-gray-300 rounded p-2 max-h-40 overflow-y-auto">
+                        {adminStores
+                          .filter(s => s.country === storeFormData.country)
+                          .map(store => (
+                            <label key={store.name} className="flex items-center gap-2 p-1">
+                            <input
+                              type="checkbox"
+                                checked={storeFormData.customStoreNames.includes(store.name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setStoreFormData(prev => ({
+                                      ...prev,
+                                      customStoreNames: [...prev.customStoreNames, store.name]
+                                    }));
+                                  } else {
+                                    setStoreFormData(prev => ({
+                                      ...prev,
+                                      customStoreNames: prev.customStoreNames.filter(n => n !== store.name)
+                                    }));
+                                  }
+                                }}
+                                className="rounded border-gray-300"
+                              />
+                              <span className="text-sm">{store.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                  </div>
+                  )}
+                </>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Image URL
+                </label>
+                <input
+                  type="text"
+                  value={storeFormData.imageUrl}
+                  onChange={(e) => setStoreFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  placeholder="https://example.com/image.jpg"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Denominations
+                </label>
+                <input
+                  type="text"
+                  value={storeFormData.denominations.join(", ")}
+                  onChange={(e) => {
+                    const values = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+                    setStoreFormData(prev => ({ ...prev, denominations: values.length > 0 ? values : [25, 50, 100] }));
+                  }}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  placeholder="25, 50, 100"
+                />
+                </div>
+              
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={storeFormData.isActive}
+                    onChange={(e) => setStoreFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm">Active</span>
+                </label>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleCreateStore}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                Create Store
+              </button>
+              <button
+                onClick={() => {
+                  setShowStoreForm(false);
+                  setStoreFormData({
+                    storeType: "regular",
+                    storeName: "",
+                    country: "US",
+                    currency: "USD",
+                    catalogId: "",
+                    masterComboId: null,
+                    customStoreNames: [],
+                    imageUrl: "",
+                    denominations: [25, 50, 100],
+                    isActive: true,
+                    supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                    offeringSuppliers: [1, 2, 3, 4, 5],
+                    selectedSupplier: null,
+                    secondarySupplier: null,
+                  });
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+      </div>
+      )}
+
+      {/* DB Cards Detail Modal */}
+      {dbCardsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">DB Cards Details</h2>
+              <button
+                onClick={() => setDbCardsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Total DB Cards</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalDBCards.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Value</p>
+                  <p className="text-2xl font-bold text-gray-900">${totalValueOfCards.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Store Name</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Qty in DB</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Value</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {dbCardsData.map((card, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{card.storeName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 text-right">{card.qtyInDB.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 text-right">${card.value.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                  <tr>
+                    <td className="px-4 py-3 text-sm font-bold text-gray-900">Total</td>
+                    <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">{totalDBCards.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">${totalValueOfCards.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setDbCardsModalOpen(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
