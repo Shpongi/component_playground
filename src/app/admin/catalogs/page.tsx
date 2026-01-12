@@ -1329,8 +1329,24 @@ export default function CatalogsPage() {
                         : "Select stores to include in this combo. This combo is not based on defaults, so you can customize the store selection."
                       }
                     </p>
-                    <div className="text-xs text-gray-500 mb-3">
-                      Selected: {formData.length} store{formData.length !== 1 ? 's' : ''}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-xs text-gray-500">
+                        Selected: {formData.length} store{formData.length !== 1 ? 's' : ''}
+                      </div>
+                      {availableStores.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setComboEditStoreNames(prev => ({
+                              ...prev,
+                              [comboInstance.id]: availableStores.map(s => s.name)
+                            }));
+                          }}
+                          className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-medium"
+                        >
+                          Add All ({availableStores.length})
+                        </button>
+                      )}
                     </div>
                   </div>
 
