@@ -324,7 +324,6 @@ export default function TenantsPage() {
                     </p>
                   </div>
                 )}
-                </div>
                 {/* Branch catalog info */}
                 {active?.isBranch && (
                   <div className="expandable-section">
