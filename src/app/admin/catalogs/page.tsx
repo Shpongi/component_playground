@@ -603,25 +603,14 @@ function TenantCatalogForceSupplierSection({ tenant, catalogId }: { tenant: Tena
   const {
     tenantCatalogForcedSupplier,
     setTenantCatalogForcedSupplier,
-    getEffectiveCatalog,
-    storeSuppliers,
-    isStoreActive
+    getEffectiveCatalogForTenant
   } = useAdminData();
   
   const forcedSupplier = tenantCatalogForcedSupplier[tenant.id]?.[catalogId] ?? null;
-  const catalog = getEffectiveCatalog(catalogId);
   
-  // Count stores available from the forced supplier
-  const availableStoresCount = forcedSupplier !== null 
-    ? catalog.stores.filter(store => {
-        if (store.country !== tenant.country) return false;
-        if (!isStoreActive(store.name, store.country)) return false;
-        const storeKey = `${store.country}-${store.name}`;
-        const supplierData = storeSuppliers[storeKey];
-        const offeringSuppliers = supplierData?.offeringSuppliers || [1, 2, 3, 4, 5];
-        return offeringSuppliers.includes(forcedSupplier);
-      }).length
-    : 0;
+  // Get the effective catalog for this tenant (applies all filters including forced supplier)
+  const effectiveCatalog = getEffectiveCatalogForTenant(tenant.id, catalogId);
+  const availableStoresCount = effectiveCatalog.stores.length;
   
   return (
     <div className="expandable-section mt-2">

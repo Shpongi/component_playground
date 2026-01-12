@@ -1706,12 +1706,13 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       visibleStores = visibleStores.filter(store => !hiddenStores.has(store.name));
     }
     
-    // If forceSupplier feature is enabled, filter to only stores with the forced supplier
+    // If forceSupplier feature is enabled, filter to only stores where the forced supplier is offering
     if (flags.forceSupplier && forcedSupplier !== null && forcedSupplier !== undefined) {
       visibleStores = visibleStores.filter(store => {
         const storeKey = `${store.country}-${store.name}`;
         const supplierData = storeSuppliers[storeKey];
-        return supplierData?.selectedSupplier === forcedSupplier;
+        const offeringSuppliers = supplierData?.offeringSuppliers || [1, 2, 3, 4, 5];
+        return offeringSuppliers.includes(forcedSupplier);
       });
     }
     
