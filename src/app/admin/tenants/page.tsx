@@ -294,7 +294,7 @@ export default function TenantsPage() {
                   <div className="flex flex-col items-end gap-2">
                     <button
                       onClick={() => setPreviewTenantId(tenant.id)}
-                      className="btn btn-success btn-xs"
+                      className="btn btn-primary btn-xs"
                     >
                       Preview
                     </button>
