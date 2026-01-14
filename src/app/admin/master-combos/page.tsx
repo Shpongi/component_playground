@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
 import type { MasterCombo, Currency } from "../_components/AdminDataProvider";
 import CreateButton from "../_components/CreateButton";
+import DeleteButton from "../_components/DeleteButton";
 
 type Country = "US" | "CA" | "GB";
 
@@ -243,12 +244,12 @@ export default function MasterCombosPage() {
                 >
                   Edit
                 </button>
-                <button
+                <DeleteButton
                   onClick={() => handleDelete(combo.id)}
-                  className="px-3 py-1.5 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200 font-medium"
+                  variant="small"
                 >
                   Delete
-                </button>
+                </DeleteButton>
               </div>
             </div>
           ))}

@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useAdminData } from "../../_components/AdminDataProvider";
 import { useParams, useRouter } from "next/navigation";
 import type { SwapListStatus, Currency, Product } from "../../_components/AdminDataProvider";
+import DeleteButton from "../../_components/DeleteButton";
 
 export default function RedemptionListEditPage() {
   const params = useParams();
@@ -356,14 +357,14 @@ export default function RedemptionListEditPage() {
                           <div className="text-sm font-medium text-gray-900">{tenant.name}</div>
                           <div className="text-xs text-gray-500">Country: {tenant.country}</div>
                         </div>
-                        <button
+                        <DeleteButton
                           onClick={() => {
                             removeTenantFromSwapList(listId, tenant.id);
                           }}
-                          className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
+                          variant="small"
                         >
                           Remove
-                        </button>
+                        </DeleteButton>
                       </div>
                     ))}
                   </div>
@@ -589,14 +590,14 @@ export default function RedemptionListEditPage() {
                           <div className="font-medium text-sm text-gray-900">{tenant.name}</div>
                           <div className="text-xs text-gray-500">Country: {tenant.country}</div>
                         </div>
-                        <button
+                        <DeleteButton
                           onClick={() => {
                             removeTenantFromSwapList(listId, tenant.id);
                           }}
-                          className="px-3 py-1 bg-red-100 text-red-800 text-xs rounded hover:bg-red-200"
+                          variant="small"
                         >
                           Remove
-                        </button>
+                        </DeleteButton>
                       </div>
                     ))}
                   </div>

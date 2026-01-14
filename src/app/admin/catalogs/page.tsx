@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
 import type { Fee, FeeType, Catalog, Store, Tenant } from "../_components/AdminDataProvider";
 import CreateButton from "../_components/CreateButton";
+import DeleteButton from "../_components/DeleteButton";
 
 // Tenant-Catalog Features Section Component
 function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: Tenant; catalogId: string; stores: Store[] }) {
@@ -89,13 +90,14 @@ function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: T
               </div>
             )}
           </div>
-          <button
+          <DeleteButton
             onClick={handleRemoveTenant}
-            className="px-3 py-1.5 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-xs font-medium border border-red-200 transition-colors"
+            variant="small"
+            className="border-red-200"
             title="Remove tenant from features"
           >
             Remove
-          </button>
+          </DeleteButton>
         </div>
       </div>
       
@@ -170,12 +172,12 @@ function TenantCatalogFeaturesSection({ tenant, catalogId, stores }: { tenant: T
           </select>
           
           {selectedEventId !== 'default' && (
-            <button
+            <DeleteButton
               onClick={() => handleDeleteEvent(selectedEventId)}
-              className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+              variant="small"
             >
               Delete
-            </button>
+            </DeleteButton>
           )}
         </div>
         <div className="mt-1 text-xs text-gray-600">
@@ -500,12 +502,13 @@ function TenantCatalogStoresSection({ tenant, catalogId, eventId }: { tenant: Te
                 return (
                   <div key={`tenant-store-${tenant.id}-${catalogId}-${storeName}`} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 last:border-b-0">
                     <span className="font-medium text-gray-700">{storeName}</span>
-                    <button
+                    <DeleteButton
                       onClick={() => removeTenantCatalogStore(tenant.id, catalogId, eventId, storeName)}
-                      className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                      variant="small"
+                      className="px-2 py-0.5"
                     >
                       Remove
-                    </button>
+                    </DeleteButton>
                   </div>
                 );
               })}
@@ -519,12 +522,13 @@ function TenantCatalogStoresSection({ tenant, catalogId, eventId }: { tenant: Te
                       <span className="font-medium text-gray-700">{comboInstance.displayName}</span>
                       <span className="px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">Combo</span>
                     </div>
-                    <button
+                    <DeleteButton
                       onClick={() => removeTenantCatalogComboInstance(tenant.id, catalogId, eventId, comboInstanceId)}
-                      className="px-2 py-0.5 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                      variant="small"
+                      className="px-2 py-0.5"
                     >
                       Remove
-                    </button>
+                    </DeleteButton>
                   </div>
                 );
               })}

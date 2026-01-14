@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
 import CreateButton from "../_components/CreateButton";
+import DeleteButton from "../_components/DeleteButton";
 
 export default function RedemptionPage() {
   const { swapLists, tenants, deleteSwapList, getTenantsUsingSwapList } = useAdminData();
@@ -180,15 +181,15 @@ export default function RedemptionPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
+                      <DeleteButton
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteSwapList(list.id);
                         }}
-                        className="text-red-600 hover:text-red-900"
+                        variant="small"
                       >
                         Delete
-                      </button>
+                      </DeleteButton>
                     </td>
                   </tr>
                 );
