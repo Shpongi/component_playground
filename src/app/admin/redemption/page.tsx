@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
-import Link from "next/link";
+import CreateButton from "../_components/CreateButton";
 
 export default function RedemptionPage() {
   const { swapLists, tenants, deleteSwapList, getTenantsUsingSwapList } = useAdminData();
@@ -35,12 +35,9 @@ export default function RedemptionPage() {
               Manage restricted product swap lists for tenants.
             </p>
           </div>
-          <Link
-            href="/admin/redemption/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-          >
+          <CreateButton href="/admin/redemption/new">
             Create New Redemption List
-          </Link>
+          </CreateButton>
         </div>
       </header>
 

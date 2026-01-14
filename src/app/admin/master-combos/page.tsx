@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
 import type { MasterCombo, Currency } from "../_components/AdminDataProvider";
+import CreateButton from "../_components/CreateButton";
 
 type Country = "US" | "CA" | "GB";
 
@@ -145,16 +146,15 @@ export default function MasterCombosPage() {
               Create global combo templates that define store lists. These can be used by tenants to create branded combo instances.
             </p>
           </div>
-          <button
+          <CreateButton
             onClick={() => {
               setEditingCombo(null);
               setFormData({ name: "", currency: "USD", storeNames: [], isActive: true, imageUrl: "" });
               setShowForm(true);
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
           >
-            + Create Default Combo
-          </button>
+            Create Default Combo
+          </CreateButton>
         </div>
       </header>
 

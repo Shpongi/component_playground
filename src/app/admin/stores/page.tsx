@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useAdminData } from "../_components/AdminDataProvider";
+import CreateButton from "../_components/CreateButton";
 
 type Country = "US" | "CA" | "GB";
 
@@ -486,12 +487,9 @@ export default function StoresPage() {
               {filteredStores.length} stores total • {activeCount} active • {inactiveCount} inactive
             </p>
           </div>
-          <button
-            onClick={() => setShowStoreForm(true)}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
-          >
-            + Create Store
-          </button>
+          <CreateButton onClick={() => setShowStoreForm(true)}>
+            Create Store
+          </CreateButton>
         </div>
       </header>
 
@@ -1725,9 +1723,12 @@ export default function StoresPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleCreateStore}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 inline-flex items-center justify-center gap-2 font-medium"
               >
-                Create Store
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Create Store</span>
               </button>
               <button
                 onClick={() => {
