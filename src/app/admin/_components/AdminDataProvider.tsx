@@ -196,6 +196,8 @@ type AdminDataContextValue = {
   getComboInstancesForCatalog: (catalogId: string) => ComboInstance[];
   getComboInstancesForTenant: (tenantId: string, catalogId: string) => ComboInstance[];
   getComboInstanceStores: (instanceId: string) => string[];
+  duplicateComboInstance: (instanceId: string, newName: string) => string;
+  duplicateStore: (storeName: string, country: Country, newStoreName: string) => void;
   // Legacy combo management (for backward compatibility)
   combos: Combo[];
   createCombo: (combo: Omit<Combo, 'id'>) => string;
@@ -2515,6 +2517,62 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  function duplicateComboInstance(instanceId: string, newName: string): string {
+    const instance = comboInstances.find(i => i.id === instanceId);
+    if (!instance) {
+      throw new Error(`Combo instance ${instanceId} not found`);
+    }
+    
+    // Create a new instance with the same properties but new name
+    const newInstance: Omit<ComboInstance, 'id' | 'dateModified'> = {
+      catalogId: instance.catalogId,
+      displayName: newName,
+      masterComboId: instance.masterComboId,
+      customStoreNames: instance.customStoreNames ? [...instance.customStoreNames] : null,
+      imageUrl: instance.imageUrl,
+      denominations: [...instance.denominations],
+      isActive: instance.isActive,
+    };
+    
+    return createComboInstance(newInstance);
+  }
+
+  function duplicateStore(storeName: string, country: Country, newStoreName: string): void {
+    const storeKey = `${country}-${storeName}`;
+    const newStoreKey = `${country}-${newStoreName}`;
+    const supplierData = storeSuppliers[storeKey];
+    
+    if (!supplierData) {
+      throw new Error(`Store ${storeName} not found or has no supplier data`);
+    }
+    
+    // Copy supplier data
+    const newSupplierData = {
+      selectedSupplier: supplierData.selectedSupplier,
+      secondarySupplier: supplierData.secondarySupplier,
+      discounts: { ...supplierData.discounts },
+      offeringSuppliers: [...supplierData.offeringSuppliers],
+    };
+    
+    // Set the new supplier data
+    setStoreSuppliers(prev => ({
+      ...prev,
+      [newStoreKey]: newSupplierData,
+    }));
+    
+    // Copy store image if exists
+    const storeImage = getStoreImage(storeName, country, false);
+    if (storeImage) {
+      setStoreImage(newStoreName, country, false, undefined, storeImage);
+    }
+    
+    // Copy store content if exists
+    const storeContent = getStoreContent(storeName, country, false);
+    if (storeContent) {
+      setStoreContent(newStoreName, country, false, undefined, storeContent);
+    }
+  }
+
   // Legacy combo management functions (for backward compatibility)
   function createCombo(combo: Omit<Combo, 'id'>): string {
     const id = `combo-${Date.now()}`;
@@ -3154,6 +3212,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     getComboInstancesForCatalog,
     getComboInstancesForTenant,
     getComboInstanceStores,
+    duplicateComboInstance,
+    duplicateStore,
     combos,
     createCombo,
     updateCombo,

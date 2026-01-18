@@ -92,6 +92,8 @@ export default function StoresPage() {
     deleteComboInstance,
     getMasterCombo,
     getComboInstanceStores,
+    duplicateComboInstance,
+    duplicateStore,
     storeSuppliers,
     setStoreSupplierDiscount,
     setStoreSelectedSupplier,
@@ -115,6 +117,12 @@ export default function StoresPage() {
   const [comboEditModalOpen, setComboEditModalOpen] = useState<Record<string, boolean>>({});
   const [comboEditStoreNames, setComboEditStoreNames] = useState<Record<string, string[]>>({});
   const [dbCardsModalOpen, setDbCardsModalOpen] = useState(false);
+  const [editingStore, setEditingStore] = useState<Store | null>(null);
+  const [editingComboInstance, setEditingComboInstance] = useState<string | null>(null);
+  const [duplicateStoreName, setDuplicateStoreName] = useState<Record<string, string>>({});
+  const [duplicateComboName, setDuplicateComboName] = useState<Record<string, string>>({});
+  const [showDuplicateStoreModal, setShowDuplicateStoreModal] = useState<Record<string, boolean>>({});
+  const [showDuplicateComboModal, setShowDuplicateComboModal] = useState<Record<string, boolean>>({});
   const [storeFormData, setStoreFormData] = useState({
     storeType: "regular" as "regular" | "combo",
     storeName: "",
@@ -292,7 +300,76 @@ export default function StoresPage() {
     }
   };
   
+  // Populate form when editing
+  useEffect(() => {
+    if (editingStore && showStoreForm) {
+      const storeKey = `${editingStore.country}-${editingStore.name}`;
+      const supplierData = storeSuppliers[storeKey] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+      const currency = editingStore.country === "US" ? "USD" : editingStore.country === "CA" ? "CAD" : "GBP";
+      
+      setStoreFormData({
+        storeType: "regular",
+        storeName: editingStore.name,
+        country: editingStore.country,
+        currency,
+        catalogId: "",
+        masterComboId: null,
+        customStoreNames: [],
+        imageUrl: "",
+        denominations: [25, 50, 100],
+        isActive: editingStore.isActive,
+        supplierMargins: supplierData.discounts || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        offeringSuppliers: supplierData.offeringSuppliers || [1, 2, 3, 4, 5],
+        selectedSupplier: supplierData.selectedSupplier,
+        secondarySupplier: supplierData.secondarySupplier,
+      });
+    } else if (editingComboInstance && showStoreForm) {
+      const instance = comboInstances.find(ci => ci.id === editingComboInstance);
+      if (instance) {
+        const catalog = catalogs.find(c => c.id === instance.catalogId);
+        const currency = catalog?.currency || "USD";
+        const country = currency === "USD" ? "US" : currency === "CAD" ? "CA" : "GB";
+        
+        setStoreFormData({
+          storeType: "combo",
+          storeName: instance.displayName,
+          country,
+          currency,
+          catalogId: instance.catalogId,
+          masterComboId: instance.masterComboId,
+          customStoreNames: instance.customStoreNames || [],
+          imageUrl: instance.imageUrl || "",
+          denominations: instance.denominations,
+          isActive: instance.isActive,
+          supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+          offeringSuppliers: [1, 2, 3, 4, 5],
+          selectedSupplier: null,
+          secondarySupplier: null,
+        });
+      }
+    }
+  }, [editingStore, editingComboInstance, showStoreForm, storeSuppliers, comboInstances, catalogs]);
+
   const handleCreateStore = () => {
+    if (editingComboInstance) {
+      // Update combo instance
+      const instance = comboInstances.find(ci => ci.id === editingComboInstance);
+      if (!instance) return;
+      
+      updateComboInstance(editingComboInstance, {
+        displayName: storeFormData.storeName,
+        imageUrl: storeFormData.imageUrl || undefined,
+        denominations: storeFormData.denominations,
+        isActive: storeFormData.isActive,
+        customStoreNames: storeFormData.customStoreNames.length > 0 ? storeFormData.customStoreNames : (instance.masterComboId ? null : []),
+      });
+      
+      alert(`Combo card "${storeFormData.storeName}" has been updated.`);
+      setShowStoreForm(false);
+      setEditingComboInstance(null);
+      return;
+    }
+    
     if (storeFormData.storeType === "regular") {
       // For regular stores, find the store in the system and set up supplier data
       if (!storeFormData.storeName) {
@@ -377,10 +454,18 @@ export default function StoresPage() {
       );
       
       if (catalog) {
-        addStoreToCatalog(catalog.id, storeFormData.storeName);
+        if (!editingStore) {
+          addStoreToCatalog(catalog.id, storeFormData.storeName);
+        }
       }
       
-      alert(`Store "${storeFormData.storeName}" has been set up with supplier data.`);
+      if (editingStore) {
+        alert(`Store "${storeFormData.storeName}" has been updated.`);
+        setShowStoreForm(false);
+        setEditingStore(null);
+      } else {
+        alert(`Store "${storeFormData.storeName}" has been set up with supplier data.`);
+      }
     } else {
       // Combo store
       if (!storeFormData.storeName) {
@@ -942,6 +1027,33 @@ export default function StoresPage() {
                         Edit Stores
                       </button>
                     )}
+                    <button
+                      onClick={() => {
+                        if (store.isComboInstance && store.comboInstanceId) {
+                          setEditingComboInstance(store.comboInstanceId);
+                        } else {
+                          setEditingStore(store);
+                        }
+                        setShowStoreForm(true);
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 border border-blue-200"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (store.isComboInstance && store.comboInstanceId) {
+                          setShowDuplicateComboModal(prev => ({ ...prev, [store.comboInstanceId!]: true }));
+                          setDuplicateComboName(prev => ({ ...prev, [store.comboInstanceId!]: `${store.name} Copy` }));
+                        } else {
+                          setShowDuplicateStoreModal(prev => ({ ...prev, [store.id]: true }));
+                          setDuplicateStoreName(prev => ({ ...prev, [store.id]: `${store.name} Copy` }));
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 rounded hover:bg-orange-100 border border-orange-200"
+                    >
+                      Duplicate
+                    </button>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
                     <input
@@ -1417,11 +1529,13 @@ export default function StoresPage() {
           );
         })}
 
-      {/* Create Store Form Modal */}
+      {/* Create/Edit Store Form Modal */}
       {showStoreForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-4">Create Store</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              {editingStore ? "Edit Store" : editingComboInstance ? "Edit Combo Card" : "Create Store"}
+            </h2>
             
               <div className="space-y-4">
                 <div>
@@ -1827,6 +1941,150 @@ export default function StoresPage() {
           </div>
         </div>
       )}
+
+      {/* Duplicate Store Modal */}
+      {Object.entries(showDuplicateStoreModal).map(([storeId, isOpen]) => {
+        if (!isOpen) return null;
+        const store = filteredStores.find(s => s.id === storeId);
+        if (!store || store.isComboInstance) return null;
+        
+        return (
+          <div key={storeId} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h2 className="text-xl font-semibold mb-4">Duplicate Store</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Store Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={duplicateStoreName[storeId] || ""}
+                    onChange={(e) => setDuplicateStoreName(prev => ({ ...prev, [storeId]: e.target.value }))}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="Enter new store name"
+                  />
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowDuplicateStoreModal(prev => ({ ...prev, [storeId]: false }));
+                      setDuplicateStoreName(prev => {
+                        const updated = { ...prev };
+                        delete updated[storeId];
+                        return updated;
+                      });
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const newName = duplicateStoreName[storeId]?.trim();
+                      if (!newName) {
+                        alert("Please enter a new store name");
+                        return;
+                      }
+                      try {
+                        duplicateStore(store.name, store.country, newName);
+                        const catalog = catalogs.find(c => 
+                          c.currency === (store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP") && 
+                          !c.isBranch && 
+                          c.name.includes("Default")
+                        );
+                        if (catalog) {
+                          addStoreToCatalog(catalog.id, newName);
+                        }
+                        alert(`Store "${newName}" has been duplicated.`);
+                        setShowDuplicateStoreModal(prev => ({ ...prev, [storeId]: false }));
+                        setDuplicateStoreName(prev => {
+                          const updated = { ...prev };
+                          delete updated[storeId];
+                          return updated;
+                        });
+                      } catch (error) {
+                        alert(error instanceof Error ? error.message : "Failed to duplicate store");
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                  >
+                    Duplicate
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Duplicate Combo Instance Modal */}
+      {Object.entries(showDuplicateComboModal).map(([comboId, isOpen]) => {
+        if (!isOpen) return null;
+        const instance = comboInstances.find(ci => ci.id === comboId);
+        if (!instance) return null;
+        
+        return (
+          <div key={comboId} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h2 className="text-xl font-semibold mb-4">Duplicate Combo Card</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Combo Card Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={duplicateComboName[comboId] || ""}
+                    onChange={(e) => setDuplicateComboName(prev => ({ ...prev, [comboId]: e.target.value }))}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="Enter new combo card name"
+                  />
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowDuplicateComboModal(prev => ({ ...prev, [comboId]: false }));
+                      setDuplicateComboName(prev => {
+                        const updated = { ...prev };
+                        delete updated[comboId];
+                        return updated;
+                      });
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const newName = duplicateComboName[comboId]?.trim();
+                      if (!newName) {
+                        alert("Please enter a new combo card name");
+                        return;
+                      }
+                      try {
+                        duplicateComboInstance(comboId, newName);
+                        alert(`Combo card "${newName}" has been duplicated.`);
+                        setShowDuplicateComboModal(prev => ({ ...prev, [comboId]: false }));
+                        setDuplicateComboName(prev => {
+                          const updated = { ...prev };
+                          delete updated[comboId];
+                          return updated;
+                        });
+                      } catch (error) {
+                        alert(error instanceof Error ? error.message : "Failed to duplicate combo card");
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                  >
+                    Duplicate
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </section>
   );
 }
