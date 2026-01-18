@@ -183,7 +183,7 @@ export default function RedemptionPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <DeleteButton
                         onClick={(e) => {
-                          e.stopPropagation();
+                          e?.stopPropagation();
                           deleteSwapList(list.id);
                         }}
                         variant="small"
