@@ -98,6 +98,7 @@ export default function StoresPage() {
     setStoreSupplierDiscount,
     setStoreSelectedSupplier,
     setStoreSecondarySupplier,
+    getStoreSupplierData,
     getStoreContent,
     setStoreContent,
     getStoreImage,
@@ -895,7 +896,8 @@ export default function StoresPage() {
           const pricingType = getStorePricingType(store);
           
           // Check if there's an uploaded image
-          const uploadedImage = getStoreImage(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+          const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+          const uploadedImage = getStoreImage(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
           
           if (uploadedImage) {
             logoUrl = uploadedImage;
@@ -978,8 +980,9 @@ export default function StoresPage() {
                 </div>
               </div>
               {!store.isComboInstance && (() => {
-                const storeKey = `${store.country}-${store.name}`;
-                const supplierData = storeSuppliers[storeKey] || { selectedSupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+                // Get currency from store's country
+                const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+                const supplierData = getStoreSupplierData(store.name, currency) || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
                 const selectedSupplier = supplierData.selectedSupplier;
                 const offeringCount = (supplierData.offeringSuppliers || [1, 2, 3, 4, 5]).length;
                 const selectedMargin = selectedSupplier !== null && selectedSupplier !== undefined 
@@ -990,7 +993,7 @@ export default function StoresPage() {
                     {selectedSupplier !== null && selectedSupplier !== undefined && selectedMargin !== null ? (
                       <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
                         <div className="text-xs font-medium text-green-800">
-                          Supplier {selectedSupplier} Selected
+                          Supplier {selectedSupplier} Selected ({currency})
                         </div>
                         <div className="text-xs text-green-700 mt-0.5">
                           Margin: {selectedMargin.toFixed(2)}%
@@ -998,7 +1001,7 @@ export default function StoresPage() {
                       </div>
                     ) : (
                       <div className="mb-2 text-xs text-gray-500">
-                        No supplier selected
+                        No supplier selected for {currency}
                       </div>
                     )}
                     {offeringCount < 5 && (
@@ -1007,13 +1010,13 @@ export default function StoresPage() {
                       </div>
                     )}
                     <button
-                      onClick={() => setSupplierModalOpen(prev => ({ ...prev, [store.id]: true }))}
+                      onClick={() => setSupplierModalOpen(prev => ({ ...prev, [`${store.id}-${currency}`]: true }))}
                       className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 border border-blue-200"
                     >
-                      Manage Suppliers
+                      Manage Suppliers ({currency})
                     </button>
-                    {store.country === "GB" && (() => {
-                      const expirationMonths = getStoreExpirationDate(store.name, store.country);
+                    {currency === "GBP" && (() => {
+                      const expirationMonths = getStoreExpirationDate(store.name, currency);
                       return (
                         <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
                           <div className="text-xs font-medium text-gray-700">
@@ -1103,7 +1106,8 @@ export default function StoresPage() {
                   <div className="flex gap-2 flex-1 flex-wrap">
                     <button
                       onClick={() => {
-                        const content = getStoreContent(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+                        const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+                        const content = getStoreContent(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
                         setContentFormData(prev => ({
                           ...prev,
                           [store.id]: { ...content }
@@ -1116,7 +1120,8 @@ export default function StoresPage() {
                     </button>
                     <button
                       onClick={() => {
-                        const currentImage = getStoreImage(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+                        const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+                        const currentImage = getStoreImage(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
                         setImageFormData(prev => ({
                           ...prev,
                           [store.id]: currentImage || ""
@@ -1187,21 +1192,34 @@ export default function StoresPage() {
       </div>
 
       {/* Supplier Management Modals */}
-      {filteredStores.filter(s => !s.isComboInstance).map(store => {
-        const storeKey = `${store.country}-${store.name}`;
-        const supplierData = storeSuppliers[storeKey] || { selectedSupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
-        const isOpen = supplierModalOpen[store.id];
-        if (!isOpen) return null;
-
-        const offeringSuppliers = supplierData.offeringSuppliers || [1, 2, 3, 4, 5];
+      {filteredStores
+        .filter(store => !store.isComboInstance)
+        .flatMap(store => {
+          // Get currency from store's country
+          const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+          const modalKey = `${store.id}-${currency}`;
+          if (!supplierModalOpen[modalKey]) return [];
+          
+          const supplierData = getStoreSupplierData(store.name, currency) || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+          const offeringSuppliers = supplierData.offeringSuppliers || [1, 2, 3, 4, 5];
+          
+          return [{
+            store,
+            currency,
+            modalKey,
+            supplierData,
+            offeringSuppliers
+          }];
+        })
+        .map(({ store, currency, modalKey, supplierData, offeringSuppliers }) => {
 
         return (
-          <div key={`supplier-modal-${store.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div key={`supplier-modal-${modalKey}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Manage Suppliers - {store.name}</h2>
+                <h2 className="text-xl font-semibold">Manage Suppliers - {store.name} ({currency})</h2>
                 <button
-                  onClick={() => setSupplierModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  onClick={() => setSupplierModalOpen(prev => ({ ...prev, [modalKey]: false }))}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1261,7 +1279,7 @@ export default function StoresPage() {
                         <button
                           onClick={() => {
                             // Only one supplier can be selected at a time - selecting a new one automatically deselects the previous
-                            setStoreSelectedSupplier(store.name, store.country, isSelected ? null : supplierId);
+                            setStoreSelectedSupplier(store.name, currency, isSelected ? null : supplierId);
                           }}
                           className={`px-3 py-1.5 text-xs font-medium rounded ${
                             isSelected
@@ -1283,7 +1301,7 @@ export default function StoresPage() {
                           value={discount}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            setStoreSupplierDiscount(store.name, store.country, supplierId, value);
+                            setStoreSupplierDiscount(store.name, currency, supplierId, value);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
                           placeholder="0"
@@ -1296,7 +1314,7 @@ export default function StoresPage() {
 
               <div className="mt-6 flex justify-end">
                 <button
-                  onClick={() => setSupplierModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  onClick={() => setSupplierModalOpen(prev => ({ ...prev, [modalKey]: false }))}
                   className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
                 >
                   Close
@@ -1312,7 +1330,8 @@ export default function StoresPage() {
         const isOpen = contentModalOpen[store.id];
         if (!isOpen) return null;
 
-        const formData = contentFormData[store.id] || getStoreContent(store.name, store.country, !!store.isComboInstance, store.comboInstanceId);
+        const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+        const formData = contentFormData[store.id] || getStoreContent(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
 
         return (
           <div key={`content-modal-${store.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1372,9 +1391,10 @@ export default function StoresPage() {
                 </button>
                 <button
                   onClick={() => {
+                    const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
                     setStoreContent(
                       store.name,
-                      store.country,
+                      currency,
                       !!store.isComboInstance,
                       store.comboInstanceId,
                       formData
@@ -1488,9 +1508,10 @@ export default function StoresPage() {
                 {formData && (
                   <button
                     onClick={() => {
+                      const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
                       setStoreImage(
                         store.name,
-                        store.country,
+                        currency,
                         !!store.isComboInstance,
                         store.comboInstanceId,
                         null
@@ -1504,9 +1525,10 @@ export default function StoresPage() {
                 )}
                 <button
                   onClick={() => {
+                    const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
                     setStoreImage(
                       store.name,
-                      store.country,
+                      currency,
                       !!store.isComboInstance,
                       store.comboInstanceId,
                       formData || null
