@@ -1115,14 +1115,19 @@ export default function StoresPage() {
                 ];
                 
                 const isMultiCurrencyStore = multiCurrencyStoreNames.includes(group.name);
-                const shouldShowTabs = isMultiCurrencyStore && group.currencies.length > 1;
+                // For multi-currency stores, always show tabs (they should have all 3 currencies)
+                // If they don't have all 3 yet, ensure they're available
+                const currenciesToShow: Currency[] = isMultiCurrencyStore 
+                  ? ["USD", "CAD", "GBP"] 
+                  : group.currencies;
+                const shouldShowTabs = isMultiCurrencyStore;
                 
                 return (
                   <div className="mb-3">
                     {/* Currency tabs - only for multi-currency stores */}
                     {shouldShowTabs && (
                       <div className="flex gap-1 mb-3 border-b border-gray-200">
-                        {group.currencies.map(currency => (
+                        {currenciesToShow.map(currency => (
                           <button
                             key={currency}
                             onClick={() => setSelectedCurrencyForStore(prev => ({ ...prev, [group.name]: currency }))}
