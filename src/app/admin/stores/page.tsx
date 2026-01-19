@@ -1099,77 +1099,99 @@ export default function StoresPage() {
                   </div>
                 </div>
               </div>
-              {!group.isComboInstance && (
-                <div className="mb-3">
-                  {/* Currency tabs */}
-                  <div className="flex gap-1 mb-3 border-b border-gray-200">
-                    {group.currencies.map(currency => (
-                      <button
-                        key={currency}
-                        onClick={() => setSelectedCurrencyForStore(prev => ({ ...prev, [group.name]: currency }))}
-                        className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-                          selectedCurrency === currency
-                            ? "border-blue-500 text-blue-600"
-                            : "border-transparent text-gray-500 hover:text-gray-700"
-                        }`}
-                      >
-                        {currency}
-                      </button>
-                    ))}
-                  </div>
+              {!group.isComboInstance && (() => {
+                // Multi-currency stores that should show currency tabs
+                const multiCurrencyStoreNames = [
+                  "Burger King",
+                  "Airbnb",
+                  "Amazon",
+                  "Booking.com",
+                  "Domino's",
+                  "Disney",
+                  "McDonald's",
+                  "Mastercard",
+                  "Netflix",
+                  "Nike"
+                ];
+                
+                const isMultiCurrencyStore = multiCurrencyStoreNames.includes(group.name);
+                const shouldShowTabs = isMultiCurrencyStore && group.currencies.length > 1;
+                
+                return (
+                  <div className="mb-3">
+                    {/* Currency tabs - only for multi-currency stores */}
+                    {shouldShowTabs && (
+                      <div className="flex gap-1 mb-3 border-b border-gray-200">
+                        {group.currencies.map(currency => (
+                          <button
+                            key={currency}
+                            onClick={() => setSelectedCurrencyForStore(prev => ({ ...prev, [group.name]: currency }))}
+                            className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                              selectedCurrency === currency
+                                ? "border-blue-500 text-blue-600"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                            }`}
+                          >
+                            {currency}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   
-                  {/* Show configuration for selected currency */}
-                  {(() => {
-                    const supplierData = getStoreSupplierData(group.name, selectedCurrency) || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
-                    const selectedSupplier = supplierData.selectedSupplier;
-                    const offeringCount = (supplierData.offeringSuppliers || [1, 2, 3, 4, 5]).length;
-                    const selectedMargin = selectedSupplier !== null && selectedSupplier !== undefined 
-                      ? supplierData.discounts[selectedSupplier] || 0 
-                      : null;
-                    
-                    return (
-                      <>
-                        {selectedSupplier !== null && selectedSupplier !== undefined && selectedMargin !== null ? (
-                          <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
-                            <div className="text-xs font-medium text-green-800">
-                              Supplier {selectedSupplier} Selected ({selectedCurrency})
-                            </div>
-                            <div className="text-xs text-green-700 mt-0.5">
-                              Margin: {selectedMargin.toFixed(2)}%
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mb-2 text-xs text-gray-500">
-                            No supplier selected for {selectedCurrency}
-                          </div>
-                        )}
-                        {offeringCount < 5 && (
-                          <div className="text-xs text-gray-500 mb-1">
-                            {offeringCount}/5 suppliers available
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setSupplierModalOpen(prev => ({ ...prev, [`${store.id}-${selectedCurrency}`]: true }))}
-                          className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 border border-blue-200"
-                        >
-                          Manage Suppliers ({selectedCurrency})
-                        </button>
-                        {selectedCurrency === "GBP" && (() => {
-                          const expirationMonths = getStoreExpirationDate(group.name, selectedCurrency);
-                          return (
-                            <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
-                              <div className="text-xs font-medium text-gray-700">
-                                Expiration Date: <span className="font-semibold">{expirationMonths} Month{expirationMonths !== 1 ? 's' : ''}</span>
+                    {/* Show configuration for selected currency */}
+                    {(() => {
+                      const currencyToUse = shouldShowTabs ? selectedCurrency : (group.currencies[0] || "USD");
+                      const supplierData = getStoreSupplierData(group.name, currencyToUse) || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+                      const selectedSupplier = supplierData.selectedSupplier;
+                      const offeringCount = (supplierData.offeringSuppliers || [1, 2, 3, 4, 5]).length;
+                      const selectedMargin = selectedSupplier !== null && selectedSupplier !== undefined 
+                        ? supplierData.discounts[selectedSupplier] || 0 
+                        : null;
+                      
+                      return (
+                        <>
+                          {selectedSupplier !== null && selectedSupplier !== undefined && selectedMargin !== null ? (
+                            <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
+                              <div className="text-xs font-medium text-green-800">
+                                Supplier {selectedSupplier} Selected {shouldShowTabs && `(${currencyToUse})`}
                               </div>
-                              <div className="text-xs text-gray-500 mt-0.5">Auto-assigned (not editable)</div>
+                              <div className="text-xs text-green-700 mt-0.5">
+                                Margin: {selectedMargin.toFixed(2)}%
+                              </div>
                             </div>
-                          );
-                        })()}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
+                          ) : (
+                            <div className="mb-2 text-xs text-gray-500">
+                              No supplier selected {shouldShowTabs && `for ${currencyToUse}`}
+                            </div>
+                          )}
+                          {offeringCount < 5 && (
+                            <div className="text-xs text-gray-500 mb-1">
+                              {offeringCount}/5 suppliers available
+                            </div>
+                          )}
+                          <button
+                            onClick={() => setSupplierModalOpen(prev => ({ ...prev, [`${store.id}-${currencyToUse}`]: true }))}
+                            className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 border border-blue-200"
+                          >
+                            Manage Suppliers {shouldShowTabs && `(${currencyToUse})`}
+                          </button>
+                          {currencyToUse === "GBP" && (() => {
+                            const expirationMonths = getStoreExpirationDate(group.name, currencyToUse);
+                            return (
+                              <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                                <div className="text-xs font-medium text-gray-700">
+                                  Expiration Date: <span className="font-semibold">{expirationMonths} Month{expirationMonths !== 1 ? 's' : ''}</span>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">Auto-assigned (not editable)</div>
+                              </div>
+                            );
+                          })()}
+                        </>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
               {store.isComboInstance && store.comboInstanceId && (() => {
                 const comboStores = getComboInstanceStores(store.comboInstanceId);
                 const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
@@ -1247,13 +1269,21 @@ export default function StoresPage() {
                   <div className="flex gap-2 flex-1 flex-wrap">
                     <button
                       onClick={() => {
-                        const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
-                        const content = getStoreContent(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
+                        // Use selected currency for multi-currency stores, otherwise use store's currency
+                        const multiCurrencyStoreNames = [
+                          "Burger King", "Airbnb", "Amazon", "Booking.com", "Domino's",
+                          "Disney", "McDonald's", "Mastercard", "Netflix", "Nike"
+                        ];
+                        const isMultiCurrency = multiCurrencyStoreNames.includes(group.name);
+                        const currency: Currency = isMultiCurrency && selectedCurrencyForStore[group.name]
+                          ? selectedCurrencyForStore[group.name]
+                          : (store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP");
+                        const content = getStoreContent(group.name, currency, !!store.isComboInstance, store.comboInstanceId);
                         setContentFormData(prev => ({
                           ...prev,
-                          [store.id]: { ...content }
+                          [`${store.id}-${currency}`]: { ...content }
                         }));
-                        setContentModalOpen(prev => ({ ...prev, [store.id]: true }));
+                        setContentModalOpen(prev => ({ ...prev, [`${store.id}-${currency}`]: true }));
                       }}
                       className="px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 border border-purple-200"
                     >
@@ -1261,13 +1291,21 @@ export default function StoresPage() {
                     </button>
                     <button
                       onClick={() => {
-                        const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
-                        const currentImage = getStoreImage(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
+                        // Use selected currency for multi-currency stores, otherwise use store's currency
+                        const multiCurrencyStoreNames = [
+                          "Burger King", "Airbnb", "Amazon", "Booking.com", "Domino's",
+                          "Disney", "McDonald's", "Mastercard", "Netflix", "Nike"
+                        ];
+                        const isMultiCurrency = multiCurrencyStoreNames.includes(group.name);
+                        const currency: Currency = isMultiCurrency && selectedCurrencyForStore[group.name]
+                          ? selectedCurrencyForStore[group.name]
+                          : (store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP");
+                        const currentImage = getStoreImage(group.name, currency, !!store.isComboInstance, store.comboInstanceId);
                         setImageFormData(prev => ({
                           ...prev,
-                          [store.id]: currentImage || ""
+                          [`${store.id}-${currency}`]: currentImage || ""
                         }));
-                        setImageModalOpen(prev => ({ ...prev, [store.id]: true }));
+                        setImageModalOpen(prev => ({ ...prev, [`${store.id}-${currency}`]: true }));
                       }}
                       className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 border border-indigo-200"
                     >
@@ -1468,19 +1506,28 @@ export default function StoresPage() {
 
       {/* Store Content (T&C & Description) Modals */}
       {filteredStores.map(store => {
-        const isOpen = contentModalOpen[store.id];
+        // Check for multi-currency stores and use currency-based modal key
+        const multiCurrencyStoreNames = [
+          "Burger King", "Airbnb", "Amazon", "Booking.com", "Domino's",
+          "Disney", "McDonald's", "Mastercard", "Netflix", "Nike"
+        ];
+        const isMultiCurrency = multiCurrencyStoreNames.includes(store.name);
+        const currency: Currency = isMultiCurrency && selectedCurrencyForStore[store.name]
+          ? selectedCurrencyForStore[store.name]
+          : (store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP");
+        const modalKey = isMultiCurrency ? `${store.id}-${currency}` : store.id;
+        const isOpen = contentModalOpen[modalKey];
         if (!isOpen) return null;
 
-        const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
-        const formData = contentFormData[store.id] || getStoreContent(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
+        const formData = contentFormData[modalKey] || getStoreContent(store.name, currency, !!store.isComboInstance, store.comboInstanceId);
 
         return (
-          <div key={`content-modal-${store.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div key={`content-modal-${modalKey}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Edit Content - {store.name}</h2>
+                <h2 className="text-xl font-semibold">Edit Content - {store.name} {isMultiCurrency && `(${currency})`}</h2>
                 <button
-                  onClick={() => setContentModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  onClick={() => setContentModalOpen(prev => ({ ...prev, [modalKey]: false }))}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1498,7 +1545,7 @@ export default function StoresPage() {
                     value={formData.description}
                     onChange={(e) => setContentFormData(prev => ({
                       ...prev,
-                      [store.id]: { ...formData, description: e.target.value }
+                      [modalKey]: { ...formData, description: e.target.value }
                     }))}
                     rows={6}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
@@ -1514,7 +1561,7 @@ export default function StoresPage() {
                     value={formData.termsAndConditions}
                     onChange={(e) => setContentFormData(prev => ({
                       ...prev,
-                      [store.id]: { ...formData, termsAndConditions: e.target.value }
+                      [modalKey]: { ...formData, termsAndConditions: e.target.value }
                     }))}
                     rows={8}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
@@ -1525,14 +1572,13 @@ export default function StoresPage() {
 
               <div className="mt-6 flex justify-end gap-3">
                 <button
-                  onClick={() => setContentModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  onClick={() => setContentModalOpen(prev => ({ ...prev, [modalKey]: false }))}
                   className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => {
-                    const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
                     setStoreContent(
                       store.name,
                       currency,
@@ -1540,7 +1586,7 @@ export default function StoresPage() {
                       store.comboInstanceId,
                       formData
                     );
-                    setContentModalOpen(prev => ({ ...prev, [store.id]: false }));
+                    setContentModalOpen(prev => ({ ...prev, [modalKey]: false }));
                   }}
                   className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm font-medium"
                 >
@@ -1554,18 +1600,28 @@ export default function StoresPage() {
 
       {/* Store Image Upload Modals */}
       {filteredStores.map(store => {
-        const isOpen = imageModalOpen[store.id];
+        // Check for multi-currency stores and use currency-based modal key
+        const multiCurrencyStoreNames = [
+          "Burger King", "Airbnb", "Amazon", "Booking.com", "Domino's",
+          "Disney", "McDonald's", "Mastercard", "Netflix", "Nike"
+        ];
+        const isMultiCurrency = multiCurrencyStoreNames.includes(store.name);
+        const currency: Currency = isMultiCurrency && selectedCurrencyForStore[store.name]
+          ? selectedCurrencyForStore[store.name]
+          : (store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP");
+        const modalKey = isMultiCurrency ? `${store.id}-${currency}` : store.id;
+        const isOpen = imageModalOpen[modalKey];
         if (!isOpen) return null;
 
-        const formData = imageFormData[store.id] || "";
+        const formData = imageFormData[modalKey] || "";
 
         return (
-          <div key={`image-modal-${store.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div key={`image-modal-${modalKey}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Upload/Update Image - {store.name}</h2>
+                <h2 className="text-xl font-semibold">Upload/Update Image - {store.name} {isMultiCurrency && `(${currency})`}</h2>
                 <button
-                  onClick={() => setImageModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  onClick={() => setImageModalOpen(prev => ({ ...prev, [modalKey]: false }))}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
