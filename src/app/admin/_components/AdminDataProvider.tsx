@@ -2682,6 +2682,20 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [storeSuppliers]);
 
+  // Multi-currency stores that should be available in all three currencies
+  const multiCurrencyStores = [
+    "Burger King",
+    "Airbnb",
+    "Amazon",
+    "Booking.com",
+    "Domino's",
+    "Disney",
+    "McDonald's",
+    "Mastercard",
+    "Netflix",
+    "Nike"
+  ];
+
   // Initialize random margins for all stores and select the supplier with highest margin
   useEffect(() => {
     if (stores.length === 0) return;
@@ -2690,8 +2704,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...prev };
       let hasChanges = false;
 
+      // Process all stores with currency-based keys
       stores.forEach(store => {
-        const key = `${store.country}-${store.name}`;
+        const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+        const key = `${currency}-${store.name}`;
         const existing = updated[key];
         
         // Check if store needs initialization or migration
@@ -2708,8 +2724,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
           const allSuppliers = [1, 2, 3, 4, 5];
           const excludedSuppliers = new Set<number>();
           
-          // Use deterministic hash based on store key for consistent results
-          const hashKey = `${store.country}-${store.name}`;
+          // Use deterministic hash based on currency and store name for consistent results
+          const hashKey = `${currency}-${store.name}`;
           let hash = 0;
           for (let i = 0; i < hashKey.length; i++) {
             hash = (hash * 31 + hashKey.charCodeAt(i)) | 0;
@@ -2733,8 +2749,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
           if (random4 < 0.20) excludedSuppliers.add(4);
           if (random5 < 0.20) excludedSuppliers.add(5);
           
-          // Special case: Amazon (US) - Supplier 3 is always unavailable
-          if (store.name === "Amazon" && store.country === "US") {
+          // Special case: Amazon (USD) - Supplier 3 is always unavailable
+          if (store.name === "Amazon" && currency === "USD") {
             excludedSuppliers.add(3);
           }
           
