@@ -1145,7 +1145,11 @@ export default function StoresPage() {
                   
                     {/* Show configuration for selected currency */}
                     {(() => {
-                      const currencyToUse = shouldShowTabs ? selectedCurrency : (group.currencies[0] || "USD");
+                      // For multi-currency stores, use selected currency or default to USD
+                      // For other stores, use their currency
+                      const currencyToUse = shouldShowTabs 
+                        ? (selectedCurrencyForStore[group.name] || "USD")
+                        : (group.currencies[0] || "USD");
                       const supplierData = getStoreSupplierData(group.name, currencyToUse) || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
                       const selectedSupplier = supplierData.selectedSupplier;
                       const offeringCount = (supplierData.offeringSuppliers || [1, 2, 3, 4, 5]).length;
