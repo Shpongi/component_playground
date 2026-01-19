@@ -147,18 +147,19 @@ type AdminDataContextValue = {
   setTenantCatalogForcedSupplier: (tenantId: string, catalogId: string, supplierId: number | null) => void;
   moveStoreInCatalog: (catalogId: string, storeName: string, direction: 'up' | 'down') => void;
   // Supplier management for stores
-  storeSuppliers: Record<string, { selectedSupplier: number | null; secondarySupplier: number | null; discounts: Record<number, number>; offeringSuppliers: number[] }>; // storeKey -> { selectedSupplier, secondarySupplier, discounts, offeringSuppliers }
-  setStoreSupplierDiscount: (storeName: string, country: Country, supplierId: number, discount: number) => void;
-  setStoreSelectedSupplier: (storeName: string, country: Country, supplierId: number | null) => void;
-  setStoreSecondarySupplier: (storeName: string, country: Country, supplierId: number | null) => void;
+  storeSuppliers: Record<string, { selectedSupplier: number | null; secondarySupplier: number | null; discounts: Record<number, number>; offeringSuppliers: number[] }>; // storeKey (currency-storeName) -> { selectedSupplier, secondarySupplier, discounts, offeringSuppliers }
+  setStoreSupplierDiscount: (storeName: string, currency: Currency, supplierId: number, discount: number) => void;
+  setStoreSelectedSupplier: (storeName: string, currency: Currency, supplierId: number | null) => void;
+  setStoreSecondarySupplier: (storeName: string, currency: Currency, supplierId: number | null) => void;
+  getStoreSupplierData: (storeName: string, currency: Currency) => { selectedSupplier: number | null; secondarySupplier: number | null; discounts: Record<number, number>; offeringSuppliers: number[] } | null;
   // Store content management (Description & T&C)
-  getStoreContent: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => { description: string; termsAndConditions: string };
-  setStoreContent: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, content: { description: string; termsAndConditions: string }) => void;
+  getStoreContent: (storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId?: string) => { description: string; termsAndConditions: string };
+  setStoreContent: (storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId: string | undefined, content: { description: string; termsAndConditions: string }) => void;
   // Store image management
-  getStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => string | null;
-  setStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) => void;
+  getStoreImage: (storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId?: string) => string | null;
+  setStoreImage: (storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) => void;
   // Store expiration date management (UK stores only, auto-assigned, not editable)
-  getStoreExpirationDate: (storeName: string, country: Country) => number; // Returns months (1, 6, 12, 24) - auto-assigned for UK stores
+  getStoreExpirationDate: (storeName: string, currency: Currency) => number; // Returns months (1, 6, 12, 24) - auto-assigned for UK stores (GBP currency)
   // Combo instance discount management
   getComboInstanceDiscount: (comboInstanceId: string) => number | null; // Returns discount percentage (0-100)
   setComboInstanceDiscount: (comboInstanceId: string, discount: number | null) => void; // discount: 0-100 or null
@@ -206,7 +207,7 @@ type AdminDataContextValue = {
   getComboInstancesForTenant: (tenantId: string, catalogId: string) => ComboInstance[];
   getComboInstanceStores: (instanceId: string) => string[];
   duplicateComboInstance: (instanceId: string, newName: string) => string;
-  duplicateStore: (storeName: string, country: Country, newStoreName: string) => void;
+  duplicateStore: (storeName: string, currency: Currency, newStoreName: string) => void;
   // Legacy combo management (for backward compatibility)
   combos: Combo[];
   createCombo: (combo: Omit<Combo, 'id'>) => string;
@@ -2546,13 +2547,13 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     return createComboInstance(newInstance);
   }
 
-  function duplicateStore(storeName: string, country: Country, newStoreName: string): void {
-    const storeKey = `${country}-${storeName}`;
-    const newStoreKey = `${country}-${newStoreName}`;
+  function duplicateStore(storeName: string, currency: Currency, newStoreName: string): void {
+    const storeKey = `${currency}-${storeName}`;
+    const newStoreKey = `${currency}-${newStoreName}`;
     const supplierData = storeSuppliers[storeKey];
     
     if (!supplierData) {
-      throw new Error(`Store ${storeName} not found or has no supplier data`);
+      throw new Error(`Store ${storeName} not found or has no supplier data for ${currency}`);
     }
     
     // Copy supplier data
@@ -2570,15 +2571,15 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }));
     
     // Copy store image if exists
-    const storeImage = getStoreImage(storeName, country, false);
+    const storeImage = getStoreImage(storeName, currency, false);
     if (storeImage) {
-      setStoreImage(newStoreName, country, false, undefined, storeImage);
+      setStoreImage(newStoreName, currency, false, undefined, storeImage);
     }
     
     // Copy store content if exists
-    const storeContent = getStoreContent(storeName, country, false);
+    const storeContent = getStoreContent(storeName, currency, false);
     if (storeContent) {
-      setStoreContent(newStoreName, country, false, undefined, storeContent);
+      setStoreContent(newStoreName, currency, false, undefined, storeContent);
     }
   }
 
@@ -2881,8 +2882,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }, [stores]);
 
-  function setStoreSupplierDiscount(storeName: string, country: Country, supplierId: number, discount: number) {
-    const key = `${country}-${storeName}`;
+  function setStoreSupplierDiscount(storeName: string, currency: Currency, supplierId: number, discount: number) {
+    const key = `${currency}-${storeName}`;
     setStoreSuppliers(prev => {
       const current = prev[key] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
       const offeringSuppliers = current.offeringSuppliers || [1, 2, 3, 4, 5];
@@ -2921,8 +2922,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  function setStoreSelectedSupplier(storeName: string, country: Country, supplierId: number | null) {
-    const key = `${country}-${storeName}`;
+  function setStoreSelectedSupplier(storeName: string, currency: Currency, supplierId: number | null) {
+    const key = `${currency}-${storeName}`;
     setStoreSuppliers(prev => {
       const current = prev[key] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
       // Only allow selecting suppliers that are offering this store
@@ -2940,8 +2941,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  function setStoreSecondarySupplier(storeName: string, country: Country, supplierId: number | null) {
-    const key = `${country}-${storeName}`;
+  function setStoreSecondarySupplier(storeName: string, currency: Currency, supplierId: number | null) {
+    const key = `${currency}-${storeName}`;
     setStoreSuppliers(prev => {
       const current = prev[key] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
       // Only allow selecting suppliers that are offering this store
@@ -2964,7 +2965,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Store descriptions and T&C management
-  // For regular stores: key is `${country}-${storeName}`
+  // For regular stores: key is `${currency}-${storeName}`
   // For combo instances: key is `combo-${comboInstanceId}`
   const [storeContent, setStoreContentState] = useState<Record<string, { description: string; termsAndConditions: string }>>(() => {
     if (typeof window !== 'undefined') {
@@ -2987,13 +2988,13 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [storeContent]);
 
-  function getStoreContent(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string): { description: string; termsAndConditions: string } {
-    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+  function getStoreContent(storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId?: string): { description: string; termsAndConditions: string } {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${currency}-${storeName}`;
     return storeContent[key] || { description: '', termsAndConditions: '' };
   }
 
-  function setStoreContent(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, content: { description: string; termsAndConditions: string }) {
-    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+  function setStoreContent(storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId: string | undefined, content: { description: string; termsAndConditions: string }) {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${currency}-${storeName}`;
     setStoreContentState(prev => ({
       ...prev,
       [key]: content
@@ -3001,7 +3002,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Store image management
-  // For regular stores: key is `${country}-${storeName}`
+  // For regular stores: key is `${currency}-${storeName}`
   // For combo instances: key is `combo-${comboInstanceId}`
   const [storeImages, setStoreImagesState] = useState<Record<string, string>>(() => {
     if (typeof window !== 'undefined') {
@@ -3024,13 +3025,13 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [storeImages]);
 
-  function getStoreImage(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string): string | null {
-    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+  function getStoreImage(storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId?: string): string | null {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${currency}-${storeName}`;
     return storeImages[key] || null;
   }
 
-  function setStoreImage(storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) {
-    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${country}-${storeName}`;
+  function setStoreImage(storeName: string, currency: Currency, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) {
+    const key = isComboInstance && comboInstanceId ? `combo-${comboInstanceId}` : `${currency}-${storeName}`;
     setStoreImagesState(prev => {
       if (imageUrl === null) {
         const updated = { ...prev };
@@ -3044,10 +3045,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  // Store expiration date management (UK stores only, auto-assigned, not editable)
-  // UK stores get a default expiration date based on deterministic logic (not stored, calculated)
-  function getStoreExpirationDate(storeName: string, country: Country): number {
-    if (country !== 'GB') return 12; // Default for non-UK stores (not used)
+  // Store expiration date management (GBP currency stores only, auto-assigned, not editable)
+  // GBP currency stores get a default expiration date based on deterministic logic (not stored, calculated)
+  function getStoreExpirationDate(storeName: string, currency: Currency): number {
+    if (currency !== 'GBP') return 12; // Default for non-GBP stores (not used)
     // Deterministic assignment based on store name hash
     // This ensures the same store always gets the same expiration date
     let hash = 0;
@@ -3057,6 +3058,12 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     const options = [1, 6, 12, 24];
     const index = Math.abs(hash) % options.length;
     return options[index];
+  }
+
+  // Helper function to get store supplier data for a specific currency
+  function getStoreSupplierData(storeName: string, currency: Currency): { selectedSupplier: number | null; secondarySupplier: number | null; discounts: Record<number, number>; offeringSuppliers: number[] } | null {
+    const key = `${currency}-${storeName}`;
+    return storeSuppliers[key] || null;
   }
 
   // Combo instance discount management
@@ -3336,6 +3343,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     setStoreSupplierDiscount,
     setStoreSelectedSupplier,
     setStoreSecondarySupplier,
+    getStoreSupplierData,
     getStoreContent,
     setStoreContent,
     getStoreImage,

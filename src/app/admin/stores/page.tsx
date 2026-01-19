@@ -115,6 +115,7 @@ export default function StoresPage() {
   const [storeTypeFilter, setStoreTypeFilter] = useState<string>("all");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [supplierModalOpen, setSupplierModalOpen] = useState<Record<string, boolean>>({});
+  const [selectedCurrencyForStore, setSelectedCurrencyForStore] = useState<Record<string, Currency>>({}); // storeName -> selected currency tab
   const [contentModalOpen, setContentModalOpen] = useState<Record<string, boolean>>({});
   const [contentFormData, setContentFormData] = useState<Record<string, { description: string; termsAndConditions: string }>>({});
   const [imageModalOpen, setImageModalOpen] = useState<Record<string, boolean>>({});
@@ -145,10 +146,59 @@ export default function StoresPage() {
     secondarySupplier: null as number | null,
   });
   
+  // Group stores by name (one store can be configured for multiple currencies)
+  const groupedStores = useMemo(() => {
+    const groups: Record<string, {
+      name: string;
+      currencies: Currency[];
+      storeType: "Close" | "Open" | "Combo";
+      isComboInstance?: boolean;
+      comboInstanceId?: string;
+    }> = {};
+    
+    // Group regular stores by name
+    adminStores.forEach(s => {
+      const storeType: "Close" | "Open" | "Combo" = s.name.toLowerCase().includes("visa") ? "Open" : "Close";
+      const currency: Currency = s.country === "US" ? "USD" : s.country === "CA" ? "CAD" : "GBP";
+      
+      if (!groups[s.name]) {
+        groups[s.name] = {
+          name: s.name,
+          currencies: [],
+          storeType,
+        };
+      }
+      if (!groups[s.name].currencies.includes(currency)) {
+        groups[s.name].currencies.push(currency);
+      }
+    });
+    
+    // Add combo instances
+    comboInstances.forEach(instance => {
+      const catalog = catalogs.find(c => c.id === instance.catalogId);
+      const currency: Currency = catalog?.currency || "USD";
+      
+      if (!groups[instance.displayName]) {
+        groups[instance.displayName] = {
+          name: instance.displayName,
+          currencies: [],
+          storeType: "Combo",
+          isComboInstance: true,
+          comboInstanceId: instance.id,
+        };
+      }
+      if (!groups[instance.displayName].currencies.includes(currency)) {
+        groups[instance.displayName].currencies.push(currency);
+      }
+    });
+    
+    return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name));
+  }, [adminStores, comboInstances, catalogs]);
+  
   const stores: Store[] = useMemo(() => {
-    // Map regular stores
+    // For backward compatibility, still create individual store entries
+    // but we'll display them grouped in the UI
     const regularStores = adminStores.map(s => {
-      // Determine store type: "Visa" stores are "Open", others are "Close"
       const storeType: "Close" | "Open" | "Combo" = s.name.toLowerCase().includes("visa") ? "Open" : "Close";
       
       return {
@@ -161,9 +211,7 @@ export default function StoresPage() {
       };
     });
     
-    // Map combo instances as stores
     const comboInstanceStores = comboInstances.map(instance => {
-      // Get catalog to determine country
       const catalog = catalogs.find(c => c.id === instance.catalogId);
       const country = catalog?.country || 'US';
       
@@ -180,8 +228,6 @@ export default function StoresPage() {
     });
     
     const allStores = [...regularStores, ...comboInstanceStores];
-    
-    // Sort alphabetically by name
     return allStores.sort((a, b) => a.name.localeCompare(b.name));
   }, [adminStores, isStoreActive, comboInstances, catalogs]);
 
