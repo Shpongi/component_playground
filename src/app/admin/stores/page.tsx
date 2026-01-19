@@ -102,6 +102,10 @@ export default function StoresPage() {
     setStoreContent,
     getStoreImage,
     setStoreImage,
+    getStoreExpirationDate,
+    setStoreExpirationDate,
+    getComboInstanceDiscount,
+    setComboInstanceDiscount,
     addStoreToCatalog
   } = useAdminData();
   
@@ -138,6 +142,7 @@ export default function StoresPage() {
     offeringSuppliers: [1, 2, 3, 4, 5] as number[],
     selectedSupplier: null as number | null,
     secondarySupplier: null as number | null,
+    expirationMonths: null as number | null,
   });
   
   const stores: Store[] = useMemo(() => {
@@ -322,6 +327,7 @@ export default function StoresPage() {
         offeringSuppliers: supplierData.offeringSuppliers || [1, 2, 3, 4, 5],
         selectedSupplier: supplierData.selectedSupplier,
         secondarySupplier: supplierData.secondarySupplier,
+        expirationMonths: getStoreExpirationDate(editingStore.name, editingStore.country),
       });
     } else if (editingComboInstance && showStoreForm) {
       const instance = comboInstances.find(ci => ci.id === editingComboInstance);
@@ -446,6 +452,14 @@ export default function StoresPage() {
           storeFormData.offeringSuppliers.includes(storeFormData.secondarySupplier) &&
           storeFormData.secondarySupplier !== selectedSupplier) {
         setStoreSecondarySupplier(storeFormData.storeName, storeFormData.country, storeFormData.secondarySupplier);
+      }
+      
+      // Set expiration date for UK stores (required)
+      if (storeFormData.country === "GB" && storeFormData.expirationMonths) {
+        setStoreExpirationDate(storeFormData.storeName, storeFormData.country, storeFormData.expirationMonths);
+      } else if (storeFormData.country === "GB" && !storeFormData.expirationMonths && !editingStore) {
+        alert("Please select an expiration date for UK stores.");
+        return;
       }
       
       // Find catalog and add store to it
@@ -958,6 +972,36 @@ export default function StoresPage() {
                     >
                       Manage Suppliers
                     </button>
+                    {store.country === "GB" && (() => {
+                      const expirationMonths = getStoreExpirationDate(store.name, store.country);
+                      return (
+                        <div className="mt-2">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Expiration Date <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={expirationMonths || ""}
+                            onChange={(e) => {
+                              const months = parseInt(e.target.value);
+                              if (months) {
+                                setStoreExpirationDate(store.name, store.country, months);
+                              }
+                            }}
+                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                            required
+                          >
+                            <option value="">Select expiration...</option>
+                            <option value="1">1 Month</option>
+                            <option value="6">6 Months</option>
+                            <option value="12">12 Months</option>
+                            <option value="24">24 Months</option>
+                          </select>
+                          {!expirationMonths && (
+                            <p className="text-xs text-red-500 mt-0.5">Required for UK stores</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
@@ -965,20 +1009,50 @@ export default function StoresPage() {
                 const comboStores = getComboInstanceStores(store.comboInstanceId);
                 const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
                 const isBasedOnDefaults = instance?.masterComboId !== null && instance?.customStoreNames === null;
+                const discount = getComboInstanceDiscount(store.comboInstanceId);
                 
                 return (
-                  <div className="mb-3 p-2 bg-purple-50 border border-purple-200 rounded">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs font-medium text-purple-800">
-                        Stores in Combo: <span className="font-bold text-base">{comboStores.length}</span>
+                  <div className="mb-3 space-y-2">
+                    <div className="p-2 bg-purple-50 border border-purple-200 rounded">
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-medium text-purple-800">
+                          Stores in Combo: <span className="font-bold text-base">{comboStores.length}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] ${
+                          isBasedOnDefaults 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-orange-100 text-orange-800"
+                        }`}>
+                          {isBasedOnDefaults ? "Based on Defaults" : "Custom"}
+                        </span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-[10px] ${
-                        isBasedOnDefaults 
-                          ? "bg-green-100 text-green-800" 
-                          : "bg-orange-100 text-orange-800"
-                      }`}>
-                        {isBasedOnDefaults ? "Based on Defaults" : "Custom"}
-                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Discount (%)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={discount ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              setComboInstanceDiscount(store.comboInstanceId, null);
+                            } else {
+                              const numValue = parseInt(value);
+                              if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+                                setComboInstanceDiscount(store.comboInstanceId, numValue);
+                              }
+                            }
+                          }}
+                          placeholder="0-100"
+                          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                        />
+                        <span className="text-xs text-gray-500">%</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1594,6 +1668,31 @@ export default function StoresPage() {
                   <option value="GBP">GBP</option>
                   </select>
                 </div>
+
+                {/* Expiration Date for UK Stores (Required) */}
+                {storeFormData.country === "GB" && storeFormData.storeType === "regular" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Expiration Date <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={storeFormData.expirationMonths || ""}
+                      onChange={(e) => {
+                        const months = e.target.value ? parseInt(e.target.value) : null;
+                        setStoreFormData(prev => ({ ...prev, expirationMonths: months }));
+                      }}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      required
+                    >
+                      <option value="">Select expiration...</option>
+                      <option value="1">1 Month</option>
+                      <option value="6">6 Months</option>
+                      <option value="12">12 Months</option>
+                      <option value="24">24 Months</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Required for UK stores</p>
+                  </div>
+                )}
 
               {storeFormData.storeType === "regular" && (
                 <>

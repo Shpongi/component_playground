@@ -156,6 +156,12 @@ type AdminDataContextValue = {
   // Store image management
   getStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => string | null;
   setStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) => void;
+  // Store expiration date management (UK stores only, required)
+  getStoreExpirationDate: (storeName: string, country: Country) => number | null; // Returns months (1, 6, 12, 24)
+  setStoreExpirationDate: (storeName: string, country: Country, months: number) => void; // months: 1, 6, 12, or 24
+  // Combo instance discount management
+  getComboInstanceDiscount: (comboInstanceId: string) => number | null; // Returns discount percentage (0-100)
+  setComboInstanceDiscount: (comboInstanceId: string, discount: number | null) => void; // discount: 0-100 or null
   // Tenant notes/descriptions
   generateTenantDescription: (tenantId: string) => string;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
@@ -3035,6 +3041,87 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  // Store expiration date management (UK stores only, required)
+  const [storeExpirationDates, setStoreExpirationDatesState] = useState<Record<string, number>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-store-expiration-dates');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-store-expiration-dates', JSON.stringify(storeExpirationDates));
+    }
+  }, [storeExpirationDates]);
+
+  function getStoreExpirationDate(storeName: string, country: Country): number | null {
+    if (country !== 'GB') return null; // Only UK stores have expiration dates
+    const key = `${country}-${storeName}`;
+    return storeExpirationDates[key] || null;
+  }
+
+  function setStoreExpirationDate(storeName: string, country: Country, months: number): void {
+    if (country !== 'GB') return; // Only UK stores have expiration dates
+    if (![1, 6, 12, 24].includes(months)) {
+      throw new Error('Expiration date must be 1, 6, 12, or 24 months');
+    }
+    const key = `${country}-${storeName}`;
+    setStoreExpirationDatesState(prev => ({
+      ...prev,
+      [key]: months
+    }));
+  }
+
+  // Combo instance discount management
+  const [comboInstanceDiscounts, setComboInstanceDiscountsState] = useState<Record<string, number>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-combo-instance-discounts');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-combo-instance-discounts', JSON.stringify(comboInstanceDiscounts));
+    }
+  }, [comboInstanceDiscounts]);
+
+  function getComboInstanceDiscount(comboInstanceId: string): number | null {
+    return comboInstanceDiscounts[comboInstanceId] ?? null;
+  }
+
+  function setComboInstanceDiscount(comboInstanceId: string, discount: number | null): void {
+    setComboInstanceDiscountsState(prev => {
+      if (discount === null) {
+        const updated = { ...prev };
+        delete updated[comboInstanceId];
+        return updated;
+      }
+      if (discount < 0 || discount > 100) {
+        throw new Error('Discount must be between 0 and 100');
+      }
+      return {
+        ...prev,
+        [comboInstanceId]: discount
+      };
+    });
+  }
+
   // Generate automatic description of tenant configuration
   function generateTenantDescription(tenantId: string): string {
     const tenant = tenants.find(t => t.id === tenantId);
@@ -3232,6 +3319,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     setStoreContent,
     getStoreImage,
     setStoreImage,
+    getStoreExpirationDate,
+    setStoreExpirationDate,
+    getComboInstanceDiscount,
+    setComboInstanceDiscount,
     generateTenantDescription,
   };
 
