@@ -232,7 +232,50 @@ export default function StoresPage() {
     return allStores.sort((a, b) => a.name.localeCompare(b.name));
   }, [adminStores, isStoreActive, comboInstances, catalogs]);
 
-  // Filter stores by currency, store type, and selected supplier
+  // Filter grouped stores by currency, store type, and selected supplier
+  const filteredGroupedStores = useMemo(() => {
+    let filtered = groupedStores;
+    
+    // Filter by currency
+    if (currencyFilter !== "all") {
+      filtered = filtered.filter(group => 
+        group.currencies.includes(currencyFilter as Currency)
+      );
+    }
+    
+    // Filter by store type
+    if (storeTypeFilter !== "all") {
+      filtered = filtered.filter(group => group.storeType === storeTypeFilter);
+    }
+    
+    // Filter by selected supplier
+    if (supplierFilter !== "all" && !filtered.some(g => g.isComboInstance)) {
+      if (supplierFilter === "none") {
+        filtered = filtered.filter(group => {
+          if (group.isComboInstance) return false;
+          // Check if any currency has no supplier selected
+          return group.currencies.some(currency => {
+            const supplierData = getStoreSupplierData(group.name, currency);
+            return !supplierData || supplierData.selectedSupplier === null;
+          });
+        });
+      } else {
+        const supplierId = parseInt(supplierFilter);
+        filtered = filtered.filter(group => {
+          if (group.isComboInstance) return false;
+          // Check if any currency has this supplier selected
+          return group.currencies.some(currency => {
+            const supplierData = getStoreSupplierData(group.name, currency);
+            return supplierData?.selectedSupplier === supplierId;
+          });
+        });
+      }
+    }
+    
+    return filtered;
+  }, [groupedStores, currencyFilter, storeTypeFilter, supplierFilter, getStoreSupplierData]);
+  
+  // Keep filteredStores for backward compatibility with modals
   const filteredStores = useMemo(() => {
     let filtered = stores;
     
@@ -240,7 +283,6 @@ export default function StoresPage() {
     if (currencyFilter !== "all") {
       filtered = filtered.filter(store => {
         if (store.isComboInstance) {
-          // For combo instances, get currency from their catalog
           const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
           if (instance) {
             const catalog = catalogs.find(c => c.id === instance.catalogId);
@@ -248,12 +290,6 @@ export default function StoresPage() {
           }
           return false;
         } else {
-          // For regular stores, check if they have a currency property
-          const adminStore = adminStores.find(s => s.name === store.name && s.country === store.country);
-          if (adminStore && (adminStore as any).currency) {
-            return (adminStore as any).currency === currencyFilter;
-          }
-          // If no currency property, map country to currency
           const countryToCurrency: Record<Country, string> = {
             "US": "USD",
             "CA": "CAD",
@@ -273,24 +309,24 @@ export default function StoresPage() {
     if (supplierFilter !== "all") {
       if (supplierFilter === "none") {
         filtered = filtered.filter(store => {
-          if (store.isComboInstance) return false; // Combo stores don't have suppliers
-          const storeKey = `${store.country}-${store.name}`;
-          const supplierData = storeSuppliers[storeKey];
+          if (store.isComboInstance) return false;
+          const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+          const supplierData = getStoreSupplierData(store.name, currency);
           return !supplierData || supplierData.selectedSupplier === null;
         });
       } else {
         const supplierId = parseInt(supplierFilter);
         filtered = filtered.filter(store => {
-          if (store.isComboInstance) return false; // Combo stores don't have suppliers
-          const storeKey = `${store.country}-${store.name}`;
-          const supplierData = storeSuppliers[storeKey];
+          if (store.isComboInstance) return false;
+          const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
+          const supplierData = getStoreSupplierData(store.name, currency);
           return supplierData?.selectedSupplier === supplierId;
         });
       }
     }
     
     return filtered;
-  }, [stores, currencyFilter, storeTypeFilter, supplierFilter, comboInstances, catalogs, adminStores, storeSuppliers]);
+  }, [stores, currencyFilter, storeTypeFilter, supplierFilter, comboInstances, catalogs, getStoreSupplierData]);
 
   // DB Cards data structure
   type DBCardData = {
@@ -722,7 +758,27 @@ export default function StoresPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredStores.map((store) => {
+        {filteredGroupedStores.map((group) => {
+          // Create a store object for display purposes
+          const store = {
+            id: group.isComboInstance ? `combo-${group.comboInstanceId}` : group.name.toLowerCase().replace(/\s+/g, '-'),
+            name: group.name,
+            country: "US" as Country, // Default for display
+            isActive: group.isComboInstance 
+              ? comboInstances.find(ci => ci.id === group.comboInstanceId)?.isActive ?? true
+              : adminStores.some(s => s.name === group.name && isStoreActive(s.name, s.country)),
+            isCombo: group.isComboInstance ?? false,
+            isComboInstance: group.isComboInstance,
+            comboInstanceId: group.comboInstanceId,
+            storeType: group.storeType,
+          };
+          
+          // Get the first available currency for image/logo
+          const firstCurrency = group.currencies[0] || "USD";
+          const countryForDisplay: Country = firstCurrency === "USD" ? "US" : firstCurrency === "CAD" ? "CA" : "GB";
+          
+          // Get selected currency for this store (default to first currency)
+          const selectedCurrency = selectedCurrencyForStore[group.name] || group.currencies[0] || "USD";
           // Get brand logo URL from official sources or Wikipedia
           const getBrandLogoUrl = (brandName: string): string => {
             const logoMap: Record<string, string> = {
@@ -901,13 +957,13 @@ export default function StoresPage() {
           
           if (uploadedImage) {
             logoUrl = uploadedImage;
-          } else if (store.isComboInstance && store.comboInstanceId) {
-            const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
-            logoUrl = instance?.imageUrl || getBrandLogoUrl(store.name);
+          } else if (group.isComboInstance && group.comboInstanceId) {
+            const instance = comboInstances.find(ci => ci.id === group.comboInstanceId);
+            logoUrl = instance?.imageUrl || getBrandLogoUrl(group.name);
           } else {
-            logoUrl = getBrandLogoUrl(store.name);
+            logoUrl = getBrandLogoUrl(group.name);
           }
-          const initials = store.name
+          const initials = group.name
             .split(" ")
             .map(word => word[0])
             .join("")
@@ -916,7 +972,7 @@ export default function StoresPage() {
 
           return (
             <div 
-              key={store.id} 
+              key={group.name} 
               className={`rounded-lg border p-4 shadow-sm transition-all ${
                 store.isActive 
                   ? "border-gray-200 bg-white" 
@@ -927,7 +983,7 @@ export default function StoresPage() {
                 <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
                   <img
                     src={logoUrl}
-                    alt={store.name}
+                    alt={group.name}
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       // Fallback to initials if logo fails to load
@@ -941,17 +997,20 @@ export default function StoresPage() {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-medium text-gray-900 truncate">{store.name}</h2>
+                  <h2 className="text-base font-medium text-gray-900 truncate">{group.name}</h2>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className={`inline-flex h-5 items-center rounded-md border px-2 text-xs font-medium ${
-                      store.country === "US" 
-                        ? "border-blue-200 bg-blue-50 text-blue-700"
-                        : store.country === "GB"
-                        ? "border-red-200 bg-red-50 text-red-700"
-                        : "border-green-200 bg-green-50 text-green-700"
-                    }`}>
-                {store.country}
-              </span>
+                    {/* Show all currencies for this store */}
+                    {group.currencies.map(currency => (
+                      <span key={currency} className={`inline-flex h-5 items-center rounded-md border px-2 text-xs font-medium ${
+                        currency === "USD" 
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : currency === "GBP"
+                          ? "border-red-200 bg-red-50 text-red-700"
+                          : "border-green-200 bg-green-50 text-green-700"
+                      }`}>
+                        {currency}
+                      </span>
+                    ))}
                     <span className={`inline-flex h-5 items-center rounded-md border px-2 text-xs font-medium ${
                       store.storeType === "Combo"
                         ? "border-purple-200 bg-purple-50 text-purple-700"
@@ -979,56 +1038,77 @@ export default function StoresPage() {
                   </div>
                 </div>
               </div>
-              {!store.isComboInstance && (() => {
-                // Get currency from store's country
-                const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
-                const supplierData = getStoreSupplierData(store.name, currency) || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
-                const selectedSupplier = supplierData.selectedSupplier;
-                const offeringCount = (supplierData.offeringSuppliers || [1, 2, 3, 4, 5]).length;
-                const selectedMargin = selectedSupplier !== null && selectedSupplier !== undefined 
-                  ? supplierData.discounts[selectedSupplier] || 0 
-                  : null;
-                return (
-                  <div className="mb-3">
-                    {selectedSupplier !== null && selectedSupplier !== undefined && selectedMargin !== null ? (
-                      <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
-                        <div className="text-xs font-medium text-green-800">
-                          Supplier {selectedSupplier} Selected ({currency})
-                        </div>
-                        <div className="text-xs text-green-700 mt-0.5">
-                          Margin: {selectedMargin.toFixed(2)}%
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mb-2 text-xs text-gray-500">
-                        No supplier selected for {currency}
-                      </div>
-                    )}
-                    {offeringCount < 5 && (
-                      <div className="text-xs text-gray-500 mb-1">
-                        {offeringCount}/5 suppliers available
-                      </div>
-                    )}
-                    <button
-                      onClick={() => setSupplierModalOpen(prev => ({ ...prev, [`${store.id}-${currency}`]: true }))}
-                      className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 border border-blue-200"
-                    >
-                      Manage Suppliers ({currency})
-                    </button>
-                    {currency === "GBP" && (() => {
-                      const expirationMonths = getStoreExpirationDate(store.name, currency);
-                      return (
-                        <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
-                          <div className="text-xs font-medium text-gray-700">
-                            Expiration Date: <span className="font-semibold">{expirationMonths} Month{expirationMonths !== 1 ? 's' : ''}</span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5">Auto-assigned (not editable)</div>
-                        </div>
-                      );
-                    })()}
+              {!group.isComboInstance && (
+                <div className="mb-3">
+                  {/* Currency tabs */}
+                  <div className="flex gap-1 mb-3 border-b border-gray-200">
+                    {group.currencies.map(currency => (
+                      <button
+                        key={currency}
+                        onClick={() => setSelectedCurrencyForStore(prev => ({ ...prev, [group.name]: currency }))}
+                        className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                          selectedCurrency === currency
+                            ? "border-blue-500 text-blue-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        {currency}
+                      </button>
+                    ))}
                   </div>
-                );
-              })()}
+                  
+                  {/* Show configuration for selected currency */}
+                  {(() => {
+                    const supplierData = getStoreSupplierData(group.name, selectedCurrency) || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
+                    const selectedSupplier = supplierData.selectedSupplier;
+                    const offeringCount = (supplierData.offeringSuppliers || [1, 2, 3, 4, 5]).length;
+                    const selectedMargin = selectedSupplier !== null && selectedSupplier !== undefined 
+                      ? supplierData.discounts[selectedSupplier] || 0 
+                      : null;
+                    
+                    return (
+                      <>
+                        {selectedSupplier !== null && selectedSupplier !== undefined && selectedMargin !== null ? (
+                          <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
+                            <div className="text-xs font-medium text-green-800">
+                              Supplier {selectedSupplier} Selected ({selectedCurrency})
+                            </div>
+                            <div className="text-xs text-green-700 mt-0.5">
+                              Margin: {selectedMargin.toFixed(2)}%
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mb-2 text-xs text-gray-500">
+                            No supplier selected for {selectedCurrency}
+                          </div>
+                        )}
+                        {offeringCount < 5 && (
+                          <div className="text-xs text-gray-500 mb-1">
+                            {offeringCount}/5 suppliers available
+                          </div>
+                        )}
+                        <button
+                          onClick={() => setSupplierModalOpen(prev => ({ ...prev, [`${store.id}-${selectedCurrency}`]: true }))}
+                          className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 border border-blue-200"
+                        >
+                          Manage Suppliers ({selectedCurrency})
+                        </button>
+                        {selectedCurrency === "GBP" && (() => {
+                          const expirationMonths = getStoreExpirationDate(group.name, selectedCurrency);
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                              <div className="text-xs font-medium text-gray-700">
+                                Expiration Date: <span className="font-semibold">{expirationMonths} Month{expirationMonths !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-0.5">Auto-assigned (not editable)</div>
+                            </div>
+                          );
+                        })()}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
               {store.isComboInstance && store.comboInstanceId && (() => {
                 const comboStores = getComboInstanceStores(store.comboInstanceId);
                 const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
