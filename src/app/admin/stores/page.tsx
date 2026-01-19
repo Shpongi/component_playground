@@ -46,12 +46,60 @@ const topCABrands = [
 function generateStores(): Store[] {
   const stores: Store[] = [];
   
-  // 110 US stores
+  // Stores that must be available in all three currencies (USD, GBP, CAD)
+  const multiCurrencyStores = [
+    "Burger King",
+    "Airbnb",
+    "Amazon",
+    "Booking.com",
+    "Domino's",
+    "Disney",
+    "McDonald's",
+    "Mastercard",
+    "Netflix",
+    "Nike"
+  ];
+  
+  // First, add multi-currency stores for all three countries
+  let storeIdCounter = 1;
+  multiCurrencyStores.forEach(brandName => {
+    const storeType: "Close" | "Open" | "Combo" = brandName.toLowerCase().includes("visa") ? "Open" : "Close";
+    
+    // Add for US (USD)
+    stores.push({
+      id: `us-${storeIdCounter++}`,
+      name: brandName,
+      country: "US",
+      isActive: true,
+      storeType,
+    });
+    
+    // Add for CA (CAD)
+    stores.push({
+      id: `ca-${storeIdCounter++}`,
+      name: brandName,
+      country: "CA",
+      isActive: true,
+      storeType,
+    });
+    
+    // Add for GB (GBP)
+    stores.push({
+      id: `gb-${storeIdCounter++}`,
+      name: brandName,
+      country: "GB",
+      isActive: true,
+      storeType,
+    });
+  });
+  
+  // Then add remaining US stores (excluding multi-currency ones already added)
+  const usBrandsToAdd = topUSBrands.filter(brand => !multiCurrencyStores.includes(brand));
   for (let i = 0; i < 110; i++) {
-    const brandName = topUSBrands[i % topUSBrands.length];
+    const brandName = usBrandsToAdd[i % usBrandsToAdd.length];
     const storeType: "Close" | "Open" | "Combo" = brandName.toLowerCase().includes("visa") ? "Open" : "Close";
     stores.push({
-      id: `us-${i + 1}`,
+      id: `us-${storeIdCounter++}`,
       name: brandName,
       country: "US",
       isActive: true,
@@ -59,12 +107,13 @@ function generateStores(): Store[] {
     });
   }
   
-  // 40 UK stores
+  // Then add remaining UK stores (excluding multi-currency ones already added)
+  const ukBrandsToAdd = topUKBrands.filter(brand => !multiCurrencyStores.includes(brand));
   for (let i = 0; i < 40; i++) {
-    const brandName = topUKBrands[i % topUKBrands.length];
+    const brandName = ukBrandsToAdd[i % ukBrandsToAdd.length];
     const storeType: "Close" | "Open" | "Combo" = brandName.toLowerCase().includes("visa") ? "Open" : "Close";
     stores.push({
-      id: `gb-${i + 1}`,
+      id: `gb-${storeIdCounter++}`,
       name: brandName,
       country: "GB",
       isActive: true,
@@ -72,7 +121,19 @@ function generateStores(): Store[] {
     });
   }
   
-  // Note: 110 + 40 = 150, so 0 CA stores. If you want CA stores, we can adjust to 100 US, 40 UK, 10 CA
+  // Add some CA stores (excluding multi-currency ones already added)
+  const caBrandsToAdd = [...usBrandsToAdd, ...ukBrandsToAdd].filter(brand => !multiCurrencyStores.includes(brand));
+  for (let i = 0; i < 30; i++) {
+    const brandName = caBrandsToAdd[i % caBrandsToAdd.length];
+    const storeType: "Close" | "Open" | "Combo" = brandName.toLowerCase().includes("visa") ? "Open" : "Close";
+    stores.push({
+      id: `ca-${storeIdCounter++}`,
+      name: brandName,
+      country: "CA",
+      isActive: true,
+      storeType,
+    });
+  }
   
   return stores;
 }
