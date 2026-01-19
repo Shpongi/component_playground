@@ -2714,8 +2714,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         const needsInitialization = !existing || Object.keys(existing.discounts || {}).length === 0;
         const hasAllSuppliers = existing?.offeringSuppliers?.length === 5;
         const missingOfferingSuppliers = !existing?.offeringSuppliers || existing.offeringSuppliers.length === 0;
-        const isAmazonUS = store.name === "Amazon" && store.country === "US";
-        const needsAmazonUpdate = isAmazonUS && existing && existing.offeringSuppliers?.includes(3);
+        const isAmazonUSD = store.name === "Amazon" && currency === "USD";
+        const needsAmazonUpdate = isAmazonUSD && existing && existing.offeringSuppliers?.includes(3);
         
         // Initialize new stores or migrate stores that have all 5 suppliers (pre-unavailability feature)
         // Also update Amazon (US) if Supplier 3 is currently available
@@ -2815,8 +2815,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
             bestSupplier = newBestSupplier;
           }
           
-          // For Amazon (US), ensure Supplier 3 is not selected if it was previously selected
-          if (isAmazonUS && bestSupplier === 3) {
+          // For Amazon (USD), ensure Supplier 3 is not selected if it was previously selected
+          if (isAmazonUSD && bestSupplier === 3) {
             // Select the supplier with highest margin (excluding Supplier 3)
             let newBestSupplier: number | null = null;
             let newHighestMargin = 0;
@@ -2892,6 +2892,79 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
             hasChanges = true;
           }
         }
+      });
+
+      // Initialize multi-currency stores for all currencies if they don't exist
+      multiCurrencyStores.forEach(storeName => {
+        const currencies: Currency[] = ["USD", "CAD", "GBP"];
+        currencies.forEach(curr => {
+          const key = `${curr}-${storeName}`;
+          if (!updated[key]) {
+            // Initialize with default supplier data
+            const hashKey = `${curr}-${storeName}`;
+            let hash = 0;
+            for (let i = 0; i < hashKey.length; i++) {
+              hash = (hash * 31 + hashKey.charCodeAt(i)) | 0;
+            }
+            
+            // Determine offering suppliers (same logic as above)
+            const allSuppliers = [1, 2, 3, 4, 5];
+            const excludedSuppliers = new Set<number>();
+            const random1 = (Math.abs(hash) % 100) / 100;
+            const random2 = ((Math.abs(hash * 7) % 100) / 100);
+            const random3 = ((Math.abs(hash * 13) % 100) / 100);
+            const random4 = ((Math.abs(hash * 17) % 100) / 100);
+            const random5 = ((Math.abs(hash * 19) % 100) / 100);
+            
+            if (random1 < 0.35) excludedSuppliers.add(1);
+            if (random2 < 0.20) excludedSuppliers.add(2);
+            if (random3 < 0.20) excludedSuppliers.add(3);
+            if (random4 < 0.20) excludedSuppliers.add(4);
+            if (random5 < 0.20) excludedSuppliers.add(5);
+            
+            // Special case: Amazon (USD) - Supplier 3 is always unavailable
+            if (storeName === "Amazon" && curr === "USD") {
+              excludedSuppliers.add(3);
+            }
+            
+            // Ensure at least 1 supplier remains available
+            if (excludedSuppliers.size >= 5) {
+              const randomSupplier = (Math.abs(hash) % 5) + 1;
+              excludedSuppliers.delete(randomSupplier);
+            }
+            
+            const offeringSuppliers: number[] = [];
+            allSuppliers.forEach(id => {
+              if (!excludedSuppliers.has(id)) {
+                offeringSuppliers.push(id);
+              }
+            });
+            
+            // Generate margins for offering suppliers
+            const discounts: Record<number, number> = {};
+            let highestMargin = 0;
+            let bestSupplier: number | null = null;
+            
+            offeringSuppliers.forEach(supplierId => {
+              const supplierHash = Math.abs((hash * (supplierId + 1)) % 10000);
+              const margin = Math.round((supplierHash % 1200) / 100 + 3) / 100; // 3-15% range
+              discounts[supplierId] = margin;
+              
+              if (margin > highestMargin) {
+                highestMargin = margin;
+                bestSupplier = supplierId;
+              }
+            });
+            
+            updated[key] = {
+              selectedSupplier: bestSupplier,
+              secondarySupplier: null,
+              discounts,
+              offeringSuppliers
+            };
+            hasChanges = true;
+          }
+        });
       });
 
       return hasChanges ? updated : prev;
