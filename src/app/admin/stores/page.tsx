@@ -1640,7 +1640,7 @@ export default function StoresPage() {
                     value={formData}
                     onChange={(e) => setImageFormData(prev => ({
                       ...prev,
-                      [store.id]: e.target.value
+                      [modalKey]: e.target.value
                     }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
                     placeholder="https://example.com/image.jpg"
@@ -1663,7 +1663,7 @@ export default function StoresPage() {
                           const base64String = reader.result as string;
                           setImageFormData(prev => ({
                             ...prev,
-                            [store.id]: base64String
+                            [modalKey]: base64String
                           }));
                         };
                         reader.readAsDataURL(file);
