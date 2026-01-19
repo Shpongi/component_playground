@@ -58,6 +58,7 @@ export type ComboInstance = {
   customStoreNames: string[] | null; // Only used if masterComboId is null
   denominations: number[];
   isActive: boolean;
+  expirationMonths?: number; // 1, 6, 12, or 24 months (for combo cards only)
   dateModified: Date;
 };
 
@@ -156,12 +157,14 @@ type AdminDataContextValue = {
   // Store image management
   getStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId?: string) => string | null;
   setStoreImage: (storeName: string, country: Country, isComboInstance: boolean, comboInstanceId: string | undefined, imageUrl: string | null) => void;
-  // Store expiration date management (UK stores only, required)
-  getStoreExpirationDate: (storeName: string, country: Country) => number | null; // Returns months (1, 6, 12, 24)
-  setStoreExpirationDate: (storeName: string, country: Country, months: number) => void; // months: 1, 6, 12, or 24
+  // Store expiration date management (UK stores only, auto-assigned, not editable)
+  getStoreExpirationDate: (storeName: string, country: Country) => number; // Returns months (1, 6, 12, 24) - auto-assigned for UK stores
   // Combo instance discount management
   getComboInstanceDiscount: (comboInstanceId: string) => number | null; // Returns discount percentage (0-100)
   setComboInstanceDiscount: (comboInstanceId: string, discount: number | null) => void; // discount: 0-100 or null
+  // Combo instance expiration date management (editable)
+  getComboInstanceExpirationDate: (comboInstanceId: string) => number | null; // Returns months (1, 6, 12, 24) or null
+  setComboInstanceExpirationDate: (comboInstanceId: string, months: number | null) => void; // months: 1, 6, 12, 24, or null
   // Tenant notes/descriptions
   generateTenantDescription: (tenantId: string) => string;
   setStoreFee: (catalogId: string, storeName: string, fee: Fee | null) => void;
@@ -3041,43 +3044,19 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  // Store expiration date management (UK stores only, required)
-  const [storeExpirationDates, setStoreExpirationDatesState] = useState<Record<string, number>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('admin-store-expiration-dates');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return {};
-        }
-      }
+  // Store expiration date management (UK stores only, auto-assigned, not editable)
+  // UK stores get a default expiration date based on deterministic logic (not stored, calculated)
+  function getStoreExpirationDate(storeName: string, country: Country): number {
+    if (country !== 'GB') return 12; // Default for non-UK stores (not used)
+    // Deterministic assignment based on store name hash
+    // This ensures the same store always gets the same expiration date
+    let hash = 0;
+    for (let i = 0; i < storeName.length; i++) {
+      hash = (hash * 31 + storeName.charCodeAt(i)) | 0;
     }
-    return {};
-  });
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('admin-store-expiration-dates', JSON.stringify(storeExpirationDates));
-    }
-  }, [storeExpirationDates]);
-
-  function getStoreExpirationDate(storeName: string, country: Country): number | null {
-    if (country !== 'GB') return null; // Only UK stores have expiration dates
-    const key = `${country}-${storeName}`;
-    return storeExpirationDates[key] || null;
-  }
-
-  function setStoreExpirationDate(storeName: string, country: Country, months: number): void {
-    if (country !== 'GB') return; // Only UK stores have expiration dates
-    if (![1, 6, 12, 24].includes(months)) {
-      throw new Error('Expiration date must be 1, 6, 12, or 24 months');
-    }
-    const key = `${country}-${storeName}`;
-    setStoreExpirationDatesState(prev => ({
-      ...prev,
-      [key]: months
-    }));
+    const options = [1, 6, 12, 24];
+    const index = Math.abs(hash) % options.length;
+    return options[index];
   }
 
   // Combo instance discount management
@@ -3118,6 +3097,48 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       return {
         ...prev,
         [comboInstanceId]: discount
+      };
+    });
+  }
+
+  // Combo instance expiration date management (editable)
+  const [comboInstanceExpirationDates, setComboInstanceExpirationDatesState] = useState<Record<string, number>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin-combo-instance-expiration-dates');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin-combo-instance-expiration-dates', JSON.stringify(comboInstanceExpirationDates));
+    }
+  }, [comboInstanceExpirationDates]);
+
+  function getComboInstanceExpirationDate(comboInstanceId: string): number | null {
+    return comboInstanceExpirationDates[comboInstanceId] ?? null;
+  }
+
+  function setComboInstanceExpirationDate(comboInstanceId: string, months: number | null): void {
+    setComboInstanceExpirationDatesState(prev => {
+      if (months === null) {
+        const updated = { ...prev };
+        delete updated[comboInstanceId];
+        return updated;
+      }
+      if (![1, 6, 12, 24].includes(months)) {
+        throw new Error('Expiration date must be 1, 6, 12, or 24 months');
+      }
+      return {
+        ...prev,
+        [comboInstanceId]: months
       };
     });
   }
@@ -3320,9 +3341,10 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     getStoreImage,
     setStoreImage,
     getStoreExpirationDate,
-    setStoreExpirationDate,
     getComboInstanceDiscount,
     setComboInstanceDiscount,
+    getComboInstanceExpirationDate,
+    setComboInstanceExpirationDate,
     generateTenantDescription,
   };
 

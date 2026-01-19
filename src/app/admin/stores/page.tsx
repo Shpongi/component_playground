@@ -103,9 +103,10 @@ export default function StoresPage() {
     getStoreImage,
     setStoreImage,
     getStoreExpirationDate,
-    setStoreExpirationDate,
     getComboInstanceDiscount,
     setComboInstanceDiscount,
+    getComboInstanceExpirationDate,
+    setComboInstanceExpirationDate,
     addStoreToCatalog
   } = useAdminData();
   
@@ -142,7 +143,6 @@ export default function StoresPage() {
     offeringSuppliers: [1, 2, 3, 4, 5] as number[],
     selectedSupplier: null as number | null,
     secondarySupplier: null as number | null,
-    expirationMonths: null as number | null,
   });
   
   const stores: Store[] = useMemo(() => {
@@ -327,7 +327,6 @@ export default function StoresPage() {
         offeringSuppliers: supplierData.offeringSuppliers || [1, 2, 3, 4, 5],
         selectedSupplier: supplierData.selectedSupplier,
         secondarySupplier: supplierData.secondarySupplier,
-        expirationMonths: getStoreExpirationDate(editingStore.name, editingStore.country),
       });
     } else if (editingComboInstance && showStoreForm) {
       const instance = comboInstances.find(ci => ci.id === editingComboInstance);
@@ -454,13 +453,8 @@ export default function StoresPage() {
         setStoreSecondarySupplier(storeFormData.storeName, storeFormData.country, storeFormData.secondarySupplier);
       }
       
-      // Set expiration date for UK stores (required)
-      if (storeFormData.country === "GB" && storeFormData.expirationMonths) {
-        setStoreExpirationDate(storeFormData.storeName, storeFormData.country, storeFormData.expirationMonths);
-      } else if (storeFormData.country === "GB" && !storeFormData.expirationMonths && !editingStore) {
-        alert("Please select an expiration date for UK stores.");
-        return;
-      }
+      // Note: UK stores get expiration date automatically (not editable)
+      // The expiration date is calculated deterministically based on store name
       
       // Find catalog and add store to it
       const catalog = catalogs.find(c => 
@@ -975,30 +969,11 @@ export default function StoresPage() {
                     {store.country === "GB" && (() => {
                       const expirationMonths = getStoreExpirationDate(store.name, store.country);
                       return (
-                        <div className="mt-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Expiration Date <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            value={expirationMonths || ""}
-                            onChange={(e) => {
-                              const months = parseInt(e.target.value);
-                              if (months) {
-                                setStoreExpirationDate(store.name, store.country, months);
-                              }
-                            }}
-                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                            required
-                          >
-                            <option value="">Select expiration...</option>
-                            <option value="1">1 Month</option>
-                            <option value="6">6 Months</option>
-                            <option value="12">12 Months</option>
-                            <option value="24">24 Months</option>
-                          </select>
-                          {!expirationMonths && (
-                            <p className="text-xs text-red-500 mt-0.5">Required for UK stores</p>
-                          )}
+                        <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                          <div className="text-xs font-medium text-gray-700">
+                            Expiration Date: <span className="font-semibold">{expirationMonths} Month{expirationMonths !== 1 ? 's' : ''}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">Auto-assigned (not editable)</div>
                         </div>
                       );
                     })()}
@@ -1010,6 +985,7 @@ export default function StoresPage() {
                 const instance = comboInstances.find(ci => ci.id === store.comboInstanceId);
                 const isBasedOnDefaults = instance?.masterComboId !== null && instance?.customStoreNames === null;
                 const discount = getComboInstanceDiscount(store.comboInstanceId);
+                const expirationMonths = getComboInstanceExpirationDate(store.comboInstanceId);
                 
                 return (
                   <div className="mb-3 space-y-2">
@@ -1053,6 +1029,25 @@ export default function StoresPage() {
                         />
                         <span className="text-xs text-gray-500">%</span>
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Expiration Date
+                      </label>
+                      <select
+                        value={expirationMonths || ""}
+                        onChange={(e) => {
+                          const months = e.target.value ? parseInt(e.target.value) : null;
+                          setComboInstanceExpirationDate(store.comboInstanceId, months);
+                        }}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                      >
+                        <option value="">Not set</option>
+                        <option value="1">1 Month</option>
+                        <option value="6">6 Months</option>
+                        <option value="12">12 Months</option>
+                        <option value="24">24 Months</option>
+                      </select>
                     </div>
                   </div>
                 );
@@ -1668,31 +1663,6 @@ export default function StoresPage() {
                   <option value="GBP">GBP</option>
                   </select>
                 </div>
-
-                {/* Expiration Date for UK Stores (Required) */}
-                {storeFormData.country === "GB" && storeFormData.storeType === "regular" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Expiration Date <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={storeFormData.expirationMonths || ""}
-                      onChange={(e) => {
-                        const months = e.target.value ? parseInt(e.target.value) : null;
-                        setStoreFormData(prev => ({ ...prev, expirationMonths: months }));
-                      }}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
-                      required
-                    >
-                      <option value="">Select expiration...</option>
-                      <option value="1">1 Month</option>
-                      <option value="6">6 Months</option>
-                      <option value="12">12 Months</option>
-                      <option value="24">24 Months</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Required for UK stores</p>
-                  </div>
-                )}
 
               {storeFormData.storeType === "regular" && (
                 <>
