@@ -1697,7 +1697,7 @@ export default function StoresPage() {
 
               <div className="mt-6 flex justify-end gap-3">
                 <button
-                  onClick={() => setImageModalOpen(prev => ({ ...prev, [store.id]: false }))}
+                  onClick={() => setImageModalOpen(prev => ({ ...prev, [modalKey]: false }))}
                   className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
                 >
                   Cancel
@@ -1705,7 +1705,6 @@ export default function StoresPage() {
                 {formData && (
                   <button
                     onClick={() => {
-                      const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
                       setStoreImage(
                         store.name,
                         currency,
@@ -1713,7 +1712,7 @@ export default function StoresPage() {
                         store.comboInstanceId,
                         null
                       );
-                      setImageModalOpen(prev => ({ ...prev, [store.id]: false }));
+                      setImageModalOpen(prev => ({ ...prev, [modalKey]: false }));
                     }}
                     className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
                   >
@@ -1722,7 +1721,6 @@ export default function StoresPage() {
                 )}
                 <button
                   onClick={() => {
-                    const currency: Currency = store.country === "US" ? "USD" : store.country === "CA" ? "CAD" : "GBP";
                     setStoreImage(
                       store.name,
                       currency,
@@ -1730,7 +1728,7 @@ export default function StoresPage() {
                       store.comboInstanceId,
                       formData || null
                     );
-                    setImageModalOpen(prev => ({ ...prev, [store.id]: false }));
+                    setImageModalOpen(prev => ({ ...prev, [modalKey]: false }));
                   }}
                   className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium"
                 >
