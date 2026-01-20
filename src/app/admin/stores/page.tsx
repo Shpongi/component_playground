@@ -517,10 +517,13 @@ export default function StoresPage() {
       const instance = comboInstances.find(ci => ci.id === editingComboInstance);
       if (!instance) return;
       
+      // Save denominations only if Fixed pricing, otherwise save empty array for Variable
+      const denominations = storeFormData.pricingType === "Fixed" ? storeFormData.denominations : [];
+      
       updateComboInstance(editingComboInstance, {
         displayName: storeFormData.storeName,
         imageUrl: storeFormData.imageUrl || undefined,
-        denominations: storeFormData.denominations,
+        denominations,
         isActive: storeFormData.isActive,
         customStoreNames: storeFormData.customStoreNames.length > 0 ? storeFormData.customStoreNames : (instance.masterComboId ? null : []),
       });
@@ -657,13 +660,16 @@ export default function StoresPage() {
       return;
     }
       
+      // Save denominations only if Fixed pricing, otherwise save empty array for Variable
+      const denominations = storeFormData.pricingType === "Fixed" ? storeFormData.denominations : [];
+      
       createComboInstance({
         catalogId: catalog.id,
         masterComboId: storeFormData.masterComboId,
         displayName: storeFormData.storeName,
         customStoreNames: storeFormData.masterComboId ? null : storeFormData.customStoreNames,
         imageUrl: storeFormData.imageUrl || undefined,
-        denominations: storeFormData.denominations,
+        denominations,
         isActive: storeFormData.isActive,
       });
     }
