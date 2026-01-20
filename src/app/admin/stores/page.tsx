@@ -200,7 +200,9 @@ export default function StoresPage() {
     masterComboId: "" as string | null,
     customStoreNames: [] as string[],
     imageUrl: "",
+    pricingType: "Fixed" as "Fixed" | "Variable",
     denominations: [25, 50, 100] as number[],
+    variableRange: { min: 5, max: 500 } as { min: number; max: number },
     isActive: true,
     supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<number, number>,
     offeringSuppliers: [1, 2, 3, 4, 5] as number[],
@@ -456,6 +458,8 @@ export default function StoresPage() {
       const supplierData = storeSuppliers[storeKey] || { selectedSupplier: null, secondarySupplier: null, discounts: {}, offeringSuppliers: [1, 2, 3, 4, 5] };
       const currency = editingStore.country === "US" ? "USD" : editingStore.country === "CA" ? "CAD" : "GBP";
       
+      // For regular stores, default to Fixed pricing with default denominations
+      // (Variable pricing range would need to be stored separately if needed)
       setStoreFormData({
         storeType: "regular",
         storeName: editingStore.name,
@@ -465,7 +469,9 @@ export default function StoresPage() {
         masterComboId: null,
         customStoreNames: [],
         imageUrl: "",
+        pricingType: "Fixed",
         denominations: [25, 50, 100],
+        variableRange: { min: 5, max: 500 },
         isActive: editingStore.isActive,
         supplierMargins: supplierData.discounts || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
         offeringSuppliers: supplierData.offeringSuppliers || [1, 2, 3, 4, 5],
@@ -479,6 +485,10 @@ export default function StoresPage() {
         const currency = catalog?.currency || "USD";
         const country = currency === "USD" ? "US" : currency === "CAD" ? "CA" : "GB";
         
+        // Determine pricing type - if no denominations or empty array, it's variable
+        const hasDenominations = instance.denominations && instance.denominations.length > 0;
+        const pricingType: "Fixed" | "Variable" = hasDenominations ? "Fixed" : "Variable";
+        
         setStoreFormData({
           storeType: "combo",
           storeName: instance.displayName,
@@ -488,7 +498,9 @@ export default function StoresPage() {
           masterComboId: instance.masterComboId,
           customStoreNames: instance.customStoreNames || [],
           imageUrl: instance.imageUrl || "",
-          denominations: instance.denominations,
+          pricingType,
+          denominations: hasDenominations ? instance.denominations : [],
+          variableRange: { min: 5, max: 500 }, // Default range, could be stored separately if needed
           isActive: instance.isActive,
           supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
           offeringSuppliers: [1, 2, 3, 4, 5],
@@ -666,7 +678,9 @@ export default function StoresPage() {
       masterComboId: null,
       customStoreNames: [],
       imageUrl: "",
+      pricingType: "Fixed",
       denominations: [25, 50, 100],
+      variableRange: { min: 5, max: 500 },
       isActive: true,
       supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       offeringSuppliers: [1, 2, 3, 4, 5],
@@ -2217,13 +2231,17 @@ export default function StoresPage() {
                     masterComboId: null,
                     customStoreNames: [],
                     imageUrl: "",
+                    pricingType: "Fixed",
                     denominations: [25, 50, 100],
+                    variableRange: { min: 5, max: 500 },
                     isActive: true,
                     supplierMargins: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
                     offeringSuppliers: [1, 2, 3, 4, 5],
                     selectedSupplier: null,
                     secondarySupplier: null,
                   });
+                  setEditingStore(null);
+                  setEditingComboInstance(null);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
