@@ -2151,17 +2151,23 @@ export default function StoresPage() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Denominations
+                  Denominations (optional)
                 </label>
                 <input
                   type="text"
                   value={storeFormData.denominations.join(", ")}
                   onChange={(e) => {
-                    const values = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v));
-                    setStoreFormData(prev => ({ ...prev, denominations: values.length > 0 ? values : [25, 50, 100] }));
+                    const raw = e.target.value.trim();
+                    if (!raw) {
+                      // Empty input means variable pricing (no fixed denominations)
+                      setStoreFormData(prev => ({ ...prev, denominations: [] }));
+                      return;
+                    }
+                    const values = raw.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+                    setStoreFormData(prev => ({ ...prev, denominations: values }));
                   }}
                   className="w-full border border-gray-300 rounded px-3 py-2"
-                  placeholder="25, 50, 100"
+                  placeholder="25, 50, 100 (leave empty for variable pricing)"
                 />
                 </div>
               
